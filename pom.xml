@@ -38,6 +38,7 @@
         <version.snakeyaml>1.26</version.snakeyaml>
         <version.slf4j>1.7.30</version.slf4j>
         <version.common-lang3>3.5</version.common-lang3>
+        <version.encoder>1.2.1</version.encoder>
         <version.logback>1.2.3</version.logback>
         <version.junit>4.13.1</version.junit>
         <version.mockito>2.7.21</version.mockito>
@@ -66,6 +67,11 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>${version.slf4j}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.owasp.encoder</groupId>
+            <artifactId>encoder</artifactId>
+            <version>${version.encoder}</version>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>

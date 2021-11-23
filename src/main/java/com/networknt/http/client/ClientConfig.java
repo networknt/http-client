@@ -1,7 +1,10 @@
 package com.networknt.http.client;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.http.HttpClient;
 import java.util.Map;
@@ -9,6 +12,7 @@ import java.util.Map;
 
 public final class ClientConfig {
 
+    public static final String CONFIG_NAME = "client";
     public static final String REQUEST = "request";
     public static final String SERVER_URL = "server_url";
     public static final String PROXY_HOST = "proxyHost";
@@ -48,7 +52,9 @@ public final class ClientConfig {
     public static final long DEFAULT_CONNECTION_EXPIRE_TIME = 1000000;
     public static final int DEFAULT_MAX_CONNECTION_PER_HOST = 1000;
     public static final int DEFAULT_MIN_CONNECTION_PER_HOST = 250;
-
+    public static final String TOKEN_RENEW_BEFORE_EXPIRED = "tokenRenewBeforeExpired";
+    public static final String EXPIRED_REFRESH_RETRY_DELAY = "expiredRefreshRetryDelay";
+    public static final String EARLY_REFRESH_RETRY_DELAY = "earlyRefreshRetryDelay";
     private static final String CONNECTION_POOL_SIZE = "connectionPoolSize";
     private static final String MAX_REQUEST_PER_CONNECTION = "maxReqPerConn";
     private static final String CONNECTION_EXPIRE_TIME = "connectionExpireTime";
@@ -70,12 +76,18 @@ public final class ClientConfig {
     private long connectionExpireTime = DEFAULT_CONNECTION_EXPIRE_TIME;
     private int maxConnectionNumPerHost = DEFAULT_MAX_CONNECTION_PER_HOST;
     private int minConnectionNumPerHost = DEFAULT_MIN_CONNECTION_PER_HOST;
+    private Logger logger = LoggerFactory.getLogger(ClientConfig.class);
 
     private static ClientConfig instance;
-    final Yaml yaml;
-
-    private ClientConfig(InputStream in) {
-        yaml = new Yaml();
+    private ClientConfig() {
+        Yaml yaml= new Yaml();
+        InputStream in = this.getClass().getClassLoader().getResourceAsStream(CONFIG_NAME + ".yaml");
+        if (in == null) {
+            in = this.getClass().getClassLoader().getResourceAsStream(CONFIG_NAME + ".yml");
+            if (in==null) {
+                logger.error("initial failed; cannot load client config file" );
+            }
+        }
         mappedConfig = yaml.load(in);
         if (mappedConfig != null) {
             setBufferSize();
@@ -84,9 +96,9 @@ public final class ClientConfig {
         }
     }
 
-    public static ClientConfig get(InputStream in) {
+    public static ClientConfig get() {
         if (instance == null) {
-            instance = new ClientConfig(in);
+            instance = new ClientConfig();
         }
         return instance;
     }
