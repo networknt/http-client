@@ -81,6 +81,7 @@ public final class ClientConfig {
     private static ClientConfig instance;
     private ClientConfig() {
         Yaml yaml= new Yaml();
+
         InputStream in = this.getClass().getClassLoader().getResourceAsStream(CONFIG_NAME + ".yaml");
         if (in == null) {
             in = this.getClass().getClassLoader().getResourceAsStream(CONFIG_NAME + ".yml");

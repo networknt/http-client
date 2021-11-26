@@ -9,16 +9,25 @@ import org.slf4j.LoggerFactory;
 import javax.net.ssl.*;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.security.*;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 public class HttpClientRequest {
 
     private  static Logger logger = LoggerFactory.getLogger(HttpClientRequest.class);
     private ClientConfig clientConfig;
     HttpClient httpClient;
+    private  HttpRequest.Builder builder;
 
     public static final String TLS = "tls";
     static final String LOAD_TRUST_STORE = "loadTrustStore";
@@ -46,7 +55,69 @@ public class HttpClientRequest {
 
     }
 
+    public HttpResponse<?> send(HttpRequest.Builder builder, HttpResponse.BodyHandler<?> handler) throws InterruptedException, IOException {
+        HttpResponse<?> response = httpClient.send(builder.build(), handler);
+        return response;
+    }
 
+    public CompletableFuture<? extends HttpResponse<?>> sendAsync(HttpRequest.Builder builder, HttpResponse.BodyHandler<?> handler) throws InterruptedException, IOException {
+        CompletableFuture<? extends HttpResponse<?>> response = httpClient.sendAsync(builder.build(), handler);
+        return response;
+    }
+
+    public HttpRequest.Builder initBuilder(String url,  HttpMethod method) throws Exception{
+        return initBuilder(new URI(url), method, Optional.empty());
+    }
+
+
+    public HttpRequest.Builder initBuilder(String url,  HttpMethod method, Optional<?> body) throws Exception{
+        return initBuilder(new URI(url), method, body);
+    }
+
+    public HttpRequest.Builder initBuilder(URI uri,  HttpMethod method) {
+        return initBuilder(uri, method, Optional.empty());
+    }
+
+    public HttpRequest.Builder initBuilder(URI uri,  HttpMethod method, Optional<?> body) {
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .uri(uri);
+        if (HttpMethod.DELETE.equals(method)) {
+            builder.DELETE();
+        } else  if (HttpMethod.POST.equals(method)) {
+            builder.POST(getBodyPublisher(body));
+        } else  if (HttpMethod.PUT.name().equals(method)) {
+            builder.PUT(getBodyPublisher(body));
+        }
+        //GET is default method
+        return builder;
+    }
+
+    protected HttpRequest.BodyPublisher getBodyPublisher(Optional<?> body) {
+        if (body.isPresent()) {
+            if (body.get() instanceof String ) {
+                return HttpRequest.BodyPublishers.ofString((String)body.get());
+            } else if (body.get() instanceof Map) {
+                return ofFormData((Map)body.get());
+            } else {
+                return HttpRequest.BodyPublishers.ofString(JsonMapper.toJson(body.get()));
+            }
+        }
+        return null;
+        //TODO add binary data BodyPublishers
+    }
+
+    private  HttpRequest.BodyPublisher ofFormData(Map<Object, Object> data) {
+        var builder = new StringBuilder();
+        for (Map.Entry<Object, Object> entry : data.entrySet()) {
+            if (builder.length() > 0) {
+                builder.append("&");
+            }
+            builder.append(URLEncoder.encode(entry.getKey().toString(), StandardCharsets.UTF_8));
+            builder.append("=");
+            builder.append(URLEncoder.encode(entry.getValue().toString(), StandardCharsets.UTF_8));
+        }
+        return HttpRequest.BodyPublishers.ofString(builder.toString());
+    }
 
     /**
      * default method for creating ssl context. trustedNames config is not used.
