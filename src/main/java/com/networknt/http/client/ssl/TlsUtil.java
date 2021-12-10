@@ -30,7 +30,7 @@ public class TlsUtil {
     public static KeyStore loadTrustStore(final String name, final char[] password) {
         try (InputStream stream = TlsUtil.class.getClassLoader().getResourceAsStream(name)) {
             if (stream == null) {
-                String message = "Unable to load truststore '" + name + "', please provide the truststore matching the configuration in client.yml/server.yml to enable TLS connection.";
+                String message = "Unable to load truststore '" + name + "', please provide the truststore matching the configuration in client.yml to enable TLS connection.";
                 if (logger.isErrorEnabled()) {
                     logger.error(message);
                 }

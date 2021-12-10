@@ -13,7 +13,7 @@ public class HttpClientRequestTest {
     @Test
     public void testGetRequest() throws Exception{
         httpClientRequest = new HttpClientRequest();
-        HttpRequest.Builder builder = httpClientRequest.initBuilder("http://localhost:9080/v1/pets", HttpMethod.GET);
+        HttpRequest.Builder builder = httpClientRequest.initBuilder("https://localhost:8443/v1/pets", HttpMethod.GET);
         HttpResponse<String> response = (HttpResponse<String>) httpClientRequest.send(builder, HttpResponse.BodyHandlers.ofString());
         // print status code
         System.out.println(response.statusCode());

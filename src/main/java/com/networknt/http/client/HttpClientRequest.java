@@ -1,5 +1,9 @@
 package com.networknt.http.client;
 
+import com.networknt.http.client.monad.Failure;
+import com.networknt.http.client.monad.Result;
+import com.networknt.http.client.oauth.Jwt;
+import com.networknt.http.client.oauth.TokenManager;
 import com.networknt.http.client.ssl.TLSConfig;
 import com.networknt.http.client.ssl.TlsUtil;
 import org.owasp.encoder.Encode;
@@ -27,7 +31,6 @@ public class HttpClientRequest {
     private  static Logger logger = LoggerFactory.getLogger(HttpClientRequest.class);
     private ClientConfig clientConfig;
     HttpClient httpClient;
-    private  HttpRequest.Builder builder;
 
     public static final String TLS = "tls";
     static final String LOAD_TRUST_STORE = "loadTrustStore";
@@ -41,18 +44,28 @@ public class HttpClientRequest {
     static final String KEY_STORE_PASSWORD_PROPERTY = "javax.net.ssl.keyStorePassword";
     static final String TRUST_STORE_PROPERTY = "javax.net.ssl.trustStore";
     static final String TRUST_STORE_PASSWORD_PROPERTY = "javax.net.ssl.trustStorePassword";
+    private TokenManager tokenManager = TokenManager.getInstance();
 
     public HttpClientRequest() {
         clientConfig = ClientConfig.get();
-        httpClient = buildHttpClient(clientConfig);
     }
 
-    protected HttpClient buildHttpClient(ClientConfig clientConfig) {
+    protected HttpClient buildHttpClient(ClientConfig clientConfig, boolean isHttps) {
+        if (isHttps) {
+            try {
+                return HttpClient.newBuilder()
+                        .version(clientConfig.getHttpVersion())
+                        .connectTimeout(Duration.ofMillis(clientConfig.getTimeout()))
+                        .sslContext(createSSLContext())
+                        .build();
+            } catch (IOException e) {
+                logger.error("cannot initial http client:" + e);
+            }
+        }
         return HttpClient.newBuilder()
                 .version(clientConfig.getHttpVersion())
                 .connectTimeout(Duration.ofMillis(clientConfig.getTimeout()))
                 .build();
-
     }
 
     public HttpResponse<?> send(HttpRequest.Builder builder, HttpResponse.BodyHandler<?> handler) throws InterruptedException, IOException {
@@ -69,7 +82,6 @@ public class HttpClientRequest {
         return initBuilder(new URI(url), method, Optional.empty());
     }
 
-
     public HttpRequest.Builder initBuilder(String url,  HttpMethod method, Optional<?> body) throws Exception{
         return initBuilder(new URI(url), method, body);
     }
@@ -79,6 +91,8 @@ public class HttpClientRequest {
     }
 
     public HttpRequest.Builder initBuilder(URI uri,  HttpMethod method, Optional<?> body) {
+
+        httpClient = buildHttpClient(clientConfig, "https".equals(uri.getScheme()));
         HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(uri);
         if (HttpMethod.DELETE.equals(method)) {
@@ -90,6 +104,80 @@ public class HttpClientRequest {
         }
         //GET is default method
         return builder;
+    }
+
+    /**
+     * Add Authorization Code grant token the caller app gets from OAuth2 server.
+     *
+     * This is the method called from client like web server
+     *
+     * @param builder the http request builder
+     * @param token the bearer token
+     */
+    public void addAuthToken(HttpRequest.Builder builder,  String token) {
+        if(token != null && !token.startsWith("Bearer ")) {
+            if(token.toUpperCase().startsWith("BEARER ")) {
+                // other cases of Bearer
+                token = "Bearer " + token.substring(7);
+            } else {
+                token = "Bearer " + token;
+            }
+        }
+        builder.setHeader(Headers.AUTHORIZATION_STRING, token);
+    }
+
+    public void addRequestHeader(HttpRequest.Builder builder,  String headerName, String headerValue) {
+        builder.setHeader(headerName, headerValue);
+    }
+
+    public void addRequestHeaders(HttpRequest.Builder builder,  Map<String, String> headers) {
+        if (headers!=null) {
+            headers.forEach((k,v)->builder.setHeader(k, v));
+        }
+    }
+
+    public void addTraceabilityId(HttpRequest.Builder builder,  String traceabilityId) {
+        builder.setHeader(Headers.TRACEABILITY_ID_STRING, traceabilityId);
+    }
+
+    public void addCorrelationId(HttpRequest.Builder builder,  String correlationId) {
+        builder.setHeader(Headers.CORRELATION_ID_STRING, correlationId);
+    }
+
+    /**
+     * Add Client Credentials token cached in the client for standalone application
+     *
+     *
+     * @param builder the http request builder
+     * @return Result when fail to get jwt, it will return a Status.
+     */
+    public Result addCcToken(HttpRequest.Builder builder) {
+        Result<Jwt> result = tokenManager.getJwt();
+        if(result.isFailure()) { return Failure.of(result.getError()); }
+        builder.setHeader(Headers.AUTHORIZATION_STRING,  "Bearer " + result.getResult().getJwt());
+        return result;
+    }
+
+    /**
+     * Support API to API calls with scope token. The token is the original token from consumer and
+     * the client credentials token of caller API is added from cache.
+     *
+     * This method is used in API to API call
+     *
+     * @param builder the http request builder
+     * @param authToken the authorization token
+     * @return Result when fail to get jwt, it will return a Status.
+     */
+    public Result populateHeader(HttpRequest.Builder builder, String authToken) {
+        Result<Jwt> result = tokenManager.getJwt();
+        if(result.isFailure()) { return Failure.of(result.getError()); }
+        if(authToken == null) {
+            authToken = "Bearer " + result.getResult().getJwt();
+        } else {
+            builder.setHeader(Headers.SCOPE_TOKEN_STRING,  "Bearer " + result.getResult().getJwt());
+        }
+        addAuthToken(builder, authToken);
+        return result;
     }
 
     protected HttpRequest.BodyPublisher getBodyPublisher(Optional<?> body) {
@@ -118,6 +206,8 @@ public class HttpClientRequest {
         }
         return HttpRequest.BodyPublishers.ofString(builder.toString());
     }
+
+
 
     /**
      * default method for creating ssl context. trustedNames config is not used.

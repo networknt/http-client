@@ -40,6 +40,8 @@
         <version.logback>1.2.3</version.logback>
         <version.junit>5.8.1</version.junit>
         <version.mockito>2.7.21</version.mockito>
+        <version.xnio>3.8.5.Final</version.xnio>
+
         <version.aspectj>1.9.7</version.aspectj>
         <version.maven-javadoc>3.1.0</version.maven-javadoc>
         <versions.maven-version>2.4</versions.maven-version>
@@ -86,6 +88,11 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
             <version>${version.jackson}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.xnio</groupId>
+            <artifactId>xnio-api</artifactId>
+            <version>${version.xnio}</version>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>

@@ -2,6 +2,7 @@ package com.networknt.http.client;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xnio.IoUtils;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
@@ -31,6 +32,7 @@ public final class ClientConfig {
     public static final String CACHE = "cache";
     public static final String CAPACITY = "capacity";
     public static final String OAUTH = "oauth";
+    public static final String CLIENT_SECRET = "client_secret";
 
     public static final String ENABLE_HTTP2 = "enableHttp2";
     public static final String TIMEOUT = "timeout";
@@ -60,10 +62,13 @@ public final class ClientConfig {
     private static final String CONNECTION_EXPIRE_TIME = "connectionExpireTime";
     private static final String MAX_CONNECTION_NUM_PER_HOST = "maxConnectionNumPerHost";
     private static final String MIN_CONNECTION_NUM_PER_HOST = "minConnectionNumPerHost";
-
+    public static final String DEREF = "deref";
+    public static final String SIGN = "sign";
     private final Map<String, Object> mappedConfig;
 
     private Map<String, Object> tokenConfig;
+    private Map<String, Object> derefConfig;
+    private Map<String, Object> signConfig;
     private int bufferSize = DEFAULT_BUFFER_SIZE;
     private int resetTimeout = DEFAULT_RESET_TIMEOUT;
     private int timeout = DEFAULT_TIMEOUT;
@@ -94,7 +99,10 @@ public final class ClientConfig {
             setBufferSize();
             setTokenConfig();
             setRequestConfig();
+            setDerefConfig();
+            setSignConfig();
         }
+        IoUtils.safeClose(in);
     }
 
     public static ClientConfig get() {
@@ -166,6 +174,19 @@ public final class ClientConfig {
         }
     }
 
+    private void setDerefConfig() {
+        Map<String, Object> oauthConfig = (Map<String, Object>)mappedConfig.get(OAUTH);
+        if (oauthConfig != null) {
+            derefConfig = (Map<String, Object>)oauthConfig.get(DEREF);
+        }
+    }
+
+    private void setSignConfig() {
+        Map<String, Object> oauthConfig = (Map<String, Object>)mappedConfig.get(OAUTH);
+        if (oauthConfig != null) {
+            signConfig = (Map<String, Object>)oauthConfig.get(SIGN);
+        }
+    }
 
     public int getBufferSize() {
         return bufferSize;
@@ -177,6 +198,14 @@ public final class ClientConfig {
 
     public Map<String, Object> getTokenConfig() {
         return tokenConfig;
+    }
+
+    public Map<String, Object> getDerefConfig() {
+        return derefConfig;
+    }
+
+    public Map<String, Object> getSignConfig() {
+        return signConfig;
     }
 
     public int getTimeout() {
