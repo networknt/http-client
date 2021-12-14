@@ -115,7 +115,7 @@ public class OauthHelper {
             String serverUrl = tokenRequest.getServerUrl();
             if(serverUrl == null) {
                 //TODO service discovery by service id
-                return null;
+                return Failure.of(new Status(OAUTH_SERVER_URL_ERROR, "empty token server url"));
             }
             if(tokenRequest.getServerUrl() == null) {
                 return Failure.of(new Status(OAUTH_SERVER_URL_ERROR, "token"));
