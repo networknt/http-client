@@ -22,13 +22,6 @@
         <developerConnection>scm:git@github.com:networknt/http-client.git</developerConnection>
         <url>https://github.com/networknt/http-client</url>
     </scm>
-    <distributionManagement>
-        <repository>
-            <id>central</id>
-            <name>848d4a29a4ad-releases</name>
-            <url>https://artifactory.sunlifecorp.com/artifactory/libs-release</url>
-        </repository>
-    </distributionManagement>
     <properties>
         <java.version>11</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
