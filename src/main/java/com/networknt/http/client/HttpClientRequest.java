@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import javax.net.ssl.*;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.*;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -25,6 +26,8 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+
 
 public class HttpClientRequest {
 
@@ -45,27 +48,63 @@ public class HttpClientRequest {
     static final String TRUST_STORE_PROPERTY = "javax.net.ssl.trustStore";
     static final String TRUST_STORE_PASSWORD_PROPERTY = "javax.net.ssl.trustStorePassword";
     private TokenManager tokenManager = TokenManager.getInstance();
+    private String proxyHost = null;
+    private int proxyPort;
+    private Authenticator authenticator = null;
+    private ExecutorService executorService = null;
 
     public HttpClientRequest() {
         clientConfig = ClientConfig.get();
     }
 
+    /**
+     * Selects the proxy server to use, if any, when connecting to the network resource referenced by a URL
+     *
+     * @param hostname Http call proxy host name.
+     * @param port Http call proxy host port number.
+     */
+    public  void setProxy(String hostname, int port) {
+        this.proxyHost = hostname;
+        this.proxyPort = port;
+    }
+
+    /**
+     * Sets the executor to be used for asynchronous and dependent tasks.
+     *
+     *
+     * @param executorService the Executor
+     * @return this builder
+     */
+    public  void setExecutorService(ExecutorService executorService) {
+        this.executorService = executorService;
+    }
+
+    /**
+     * Sets an authenticator to use for HTTP authentication.
+     *
+     * @param authenticator Http call proxy host name.
+     */
+    public  void setAuthenticator(Authenticator authenticator) {
+        this.authenticator = authenticator;
+    }
+
     protected HttpClient buildHttpClient(ClientConfig clientConfig, boolean isHttps) {
+
+        HttpClient.Builder clientBuilder =  HttpClient.newBuilder()
+                .version(clientConfig.getHttpVersion())
+                .connectTimeout(Duration.ofMillis(clientConfig.getTimeout()));
         if (isHttps) {
             try {
-                return HttpClient.newBuilder()
-                        .version(clientConfig.getHttpVersion())
-                        .connectTimeout(Duration.ofMillis(clientConfig.getTimeout()))
-                        .sslContext(createSSLContext())
-                        .build();
+                clientBuilder.sslContext(createSSLContext());
             } catch (IOException e) {
                 logger.error("cannot initial http client:" + e);
             }
         }
-        return HttpClient.newBuilder()
-                .version(clientConfig.getHttpVersion())
-                .connectTimeout(Duration.ofMillis(clientConfig.getTimeout()))
-                .build();
+
+        if(this.proxyHost != null) clientBuilder.proxy(ProxySelector.of(new InetSocketAddress(this.proxyHost, this.proxyPort == 0 ? 443 : this.proxyPort)));
+        if(this.authenticator != null)  clientBuilder.authenticator(this.authenticator);
+        if(this.executorService != null)  clientBuilder.executor(this.executorService);
+        return clientBuilder.build();
     }
 
     public HttpResponse<?> send(HttpRequest.Builder builder, HttpResponse.BodyHandler<?> handler) throws InterruptedException, IOException {
