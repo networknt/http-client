@@ -1,7 +1,5 @@
 package com.networknt.http.client.monad;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-
 public class Status {
     private int statusCode;
     private String code;

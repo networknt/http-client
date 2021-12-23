@@ -12,15 +12,11 @@ import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.*;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.*;
-import java.net.URI;
-import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.security.*;
 import java.time.Duration;
 import java.util.Map;
@@ -71,11 +67,10 @@ public class HttpClientRequest {
     /**
      * Sets the executor to be used for asynchronous and dependent tasks.
      *
-     *
      * @param executorService the Executor
-     * @return this builder
+     *
      */
-    public  void setExecutorService(ExecutorService executorService) {
+    public void setExecutorService(ExecutorService executorService) {
         this.executorService = executorService;
     }
 
