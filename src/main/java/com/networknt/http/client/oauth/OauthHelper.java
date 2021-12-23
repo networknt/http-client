@@ -15,9 +15,6 @@
  */
 package com.networknt.http.client.oauth;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
-
 import com.networknt.http.client.*;
 import com.networknt.http.client.exception.ClientException;
 import com.networknt.http.client.monad.Failure;
@@ -44,7 +41,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 

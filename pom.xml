@@ -1,4 +1,3 @@
-
 <project
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -7,9 +6,20 @@
     <artifactId>http-client</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
-    <description>general http client module</description>
+    <description>generic http client module</description>
     <url>https://github.com/networknt/http-client</url>
     <name>HttpClient</name>
+    <developers>
+        <developer>
+            <id>GavinChenYan</id>
+            <name>Gavin Chen</name>
+            <email>gavinyan.han@gmail.com</email>
+        </developer>
+    </developers>
+    <issueManagement>
+        <system>github</system>
+        <url>https://github.com/networknt/http-client/issues</url>
+    </issueManagement>
     <licenses>
         <license>
             <name>Apache License Version 2.0</name>
@@ -22,18 +32,27 @@
         <developerConnection>scm:git@github.com:networknt/http-client.git</developerConnection>
         <url>https://github.com/networknt/http-client</url>
     </scm>
+    <distributionManagement>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
     <properties>
         <java.version>11</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <version.snakeyaml>1.26</version.snakeyaml>
-        <version.slf4j>1.7.30</version.slf4j>
+        <version.slf4j>1.7.32</version.slf4j>
         <version.common-lang3>3.5</version.common-lang3>
         <version.encoder>1.2.1</version.encoder>
         <version.jackson>2.12.1</version.jackson>
         <version.logback>1.2.3</version.logback>
         <version.junit>5.8.1</version.junit>
         <version.mockito>2.7.21</version.mockito>
-        <version.xnio>3.8.5.Final</version.xnio>
 
         <version.aspectj>1.9.7</version.aspectj>
         <version.maven-javadoc>3.1.0</version.maven-javadoc>
@@ -58,11 +77,6 @@
             <version>${version.common-lang3}</version>
         </dependency>
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>${version.slf4j}</version>
-        </dependency>
-        <dependency>
             <groupId>org.owasp.encoder</groupId>
             <artifactId>encoder</artifactId>
             <version>${version.encoder}</version>
@@ -81,11 +95,6 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
             <version>${version.jackson}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jboss.xnio</groupId>
-            <artifactId>xnio-api</artifactId>
-            <version>${version.xnio}</version>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>

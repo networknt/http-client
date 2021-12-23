@@ -2,7 +2,6 @@ package com.networknt.http.client;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.xnio.IoUtils;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
@@ -64,7 +63,7 @@ public final class ClientConfig {
     private static final String MIN_CONNECTION_NUM_PER_HOST = "minConnectionNumPerHost";
     public static final String DEREF = "deref";
     public static final String SIGN = "sign";
-    private final Map<String, Object> mappedConfig;
+    private Map<String, Object> mappedConfig = null;
 
     private Map<String, Object> tokenConfig;
     private Map<String, Object> derefConfig;
@@ -87,14 +86,21 @@ public final class ClientConfig {
     private ClientConfig() {
         Yaml yaml= new Yaml();
 
-        InputStream in = this.getClass().getClassLoader().getResourceAsStream(CONFIG_NAME + ".yaml");
-        if (in == null) {
-            in = this.getClass().getClassLoader().getResourceAsStream(CONFIG_NAME + ".yml");
-            if (in==null) {
-                logger.error("initial failed; cannot load client config file" );
+        try (InputStream yamlIn = this.getClass().getClassLoader().getResourceAsStream(CONFIG_NAME + ".yaml")) {
+            if (yamlIn == null) {
+                try (InputStream ymlIn = this.getClass().getClassLoader().getResourceAsStream(CONFIG_NAME + ".yml")) {
+                    if (ymlIn == null) {
+                        logger.error("initial failed; cannot load client config file client.yml or client.yaml");
+                    } else {
+                        mappedConfig = yaml.load(ymlIn);
+                    }
+                }
+            } else {
+                mappedConfig = yaml.load(yamlIn);
             }
+        } catch (IOException e) {
+            logger.error("IOException while loading client.yml or client.yaml");
         }
-        mappedConfig = yaml.load(in);
         if (mappedConfig != null) {
             setBufferSize();
             setTokenConfig();
@@ -102,7 +108,6 @@ public final class ClientConfig {
             setDerefConfig();
             setSignConfig();
         }
-        IoUtils.safeClose(in);
     }
 
     public static ClientConfig get() {

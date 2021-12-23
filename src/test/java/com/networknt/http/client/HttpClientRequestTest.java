@@ -8,8 +8,6 @@ import java.net.http.HttpResponse;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 @Disabled
 public class HttpClientRequestTest {
 
