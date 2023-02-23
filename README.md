@@ -108,3 +108,20 @@ For example:
         httpClientRequest.setAuthenticator(authenticator);
 ```
 
+### TLS context load info
+
+Java HttpClient by default will load default JDK cacerts for https request, if the API call doesn't include self-signed cert, we can leave the :
+
+```
+  # trust store contains certifictes that server needs. Enable if tls is used.
+  loadTrustStore: false
+``` 
+
+If we need load self-signed trust from client truststore, set the config value to true:
+
+```
+  # trust store contains certifictes that server needs. Enable if tls is used.
+  loadTrustStore: true
+```
+
+System will load the client truststore and default certs together for SSL context

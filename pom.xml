@@ -53,7 +53,6 @@
         <version.logback>1.2.3</version.logback>
         <version.junit>5.8.1</version.junit>
         <version.mockito>2.7.21</version.mockito>
-
         <version.aspectj>1.9.7</version.aspectj>
         <version.maven-javadoc>3.1.0</version.maven-javadoc>
         <versions.maven-version>2.4</versions.maven-version>
@@ -76,6 +75,7 @@
             <artifactId>commons-lang3</artifactId>
             <version>${version.common-lang3}</version>
         </dependency>
+
         <dependency>
             <groupId>org.owasp.encoder</groupId>
             <artifactId>encoder</artifactId>
