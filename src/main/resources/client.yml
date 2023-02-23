@@ -27,6 +27,8 @@ tls:
   keyStorePass: password
   # private key password
   keyPass: password
+  # public issued CA cert  password
+  defaultCertPassword: changeit
 # settings for OAuth2 server communication
 oauth:
   # OAuth 2.0 token endpoint configuration
