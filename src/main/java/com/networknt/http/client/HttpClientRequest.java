@@ -8,7 +8,6 @@ import com.networknt.http.client.ssl.ClientX509ExtendedTrustManager;
 import com.networknt.http.client.ssl.TLSConfig;
 import com.networknt.http.client.ssl.TlsUtil;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.hc.client5.http.config.TlsConfig;
 import org.owasp.encoder.Encode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
