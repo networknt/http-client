@@ -5,6 +5,7 @@ import com.networknt.http.client.monad.Result;
 import com.networknt.http.client.oauth.Jwt;
 import com.networknt.http.client.oauth.TokenManager;
 import com.networknt.http.client.ssl.ClientX509ExtendedTrustManager;
+import com.networknt.http.client.ssl.CompositeX509TrustManager;
 import com.networknt.http.client.ssl.TLSConfig;
 import com.networknt.http.client.ssl.TlsUtil;
 import org.apache.commons.lang3.StringUtils;
@@ -40,12 +41,14 @@ public class HttpClientRequest {
     public static final String TLS = "tls";
     static final String LOAD_TRUST_STORE = "loadTrustStore";
     static final String LOAD_KEY_STORE = "loadKeyStore";
+    static final String LOAD_DEFAULT_TRUST = "loadDefaultTrustStore";
     static final String TRUST_STORE = "trustStore";
     static final String TRUST_STORE_PASS = "trustStorePass";
     static final String DEFAULT_CERT_PASS = "defaultCertPassword";
     static final String KEY_STORE = "keyStore";
     static final String KEY_STORE_PASS = "keyStorePass";
     static final String KEY_PASS = "keyPass";
+    static final String TLS_VERSION = "tlsVersion";
     static final String KEY_STORE_PROPERTY = "javax.net.ssl.keyStore";
     static final String KEY_STORE_PASSWORD_PROPERTY = "javax.net.ssl.keyStorePassword";
     static final String TRUST_STORE_PROPERTY = "javax.net.ssl.trustStore";
@@ -249,29 +252,14 @@ public class HttpClientRequest {
         return HttpRequest.BodyPublishers.ofString(builder.toString());
     }
 
-
-
-    /**
-     * default method for creating ssl context. trustedNames config is not used.
-     *
-     * @return SSLContext
-     * @throws IOException IOException
-     */
-    public static SSLContext createSSLContext() throws IOException {
-        Map<String, Object> tlsMap = (Map<String, Object>)ClientConfig.get().getMappedConfig().get(TLS);
-
-        return null==tlsMap?null:createSSLContext((String)tlsMap.get(TLSConfig.DEFAULT_GROUP_KEY));
-    }
-
     /**
      * create ssl context using specified trustedName config
      *
-     * @param trustedNamesGroupKey - the trustedName config to be used
      * @return SSLContext
      * @throws IOException IOException
      */
     @SuppressWarnings("unchecked")
-    public static SSLContext createSSLContext(String trustedNamesGroupKey) throws IOException {
+    public static SSLContext createSSLContext() throws IOException {
         SSLContext sslContext = null;
         KeyManager[] keyManagers = null;
         Map<String, Object> tlsMap = (Map<String, Object>)ClientConfig.get().getMappedConfig().get(TLS);
@@ -288,14 +276,14 @@ public class HttpClientRequest {
                         keyStoreName = (String) tlsMap.get(KEY_STORE);
                         keyStorePass = (String) tlsMap.get(KEY_STORE_PASS);
                         if(keyStorePass == null) {
-                            logger.error("Cann not load the config:" +  KEY_STORE_PASS + "from client.yml");
+                            logger.error("Cannot load the config: " +  KEY_STORE_PASS + " from client.yml");
                         }
                         if(logger.isInfoEnabled()) logger.info("Loading key store from config at " + Encode.forJava(keyStoreName));
                     }
                     if (keyStoreName != null && keyStorePass != null) {
                         String keyPass = (String) tlsMap.get(KEY_PASS);
                         if(keyPass == null) {
-                            logger.error("Can not load the config:"  + KEY_PASS, "client.yml");
+                            logger.error("Cannot load the config: " + KEY_PASS + " from client.yml");
                         }
                         KeyStore keyStore = TlsUtil.loadKeyStore(keyStoreName, keyStorePass.toCharArray());
                         KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
@@ -308,6 +296,7 @@ public class HttpClientRequest {
             }
 
             TrustManager[] trustManagers = null;
+            Boolean loadDefaultTrust = (Boolean) tlsMap.get(LOAD_DEFAULT_TRUST);
             List<TrustManager> trustManagerList = new ArrayList<>();
             try {
                 // load trust store, this is the server public key certificate
@@ -315,22 +304,24 @@ public class HttpClientRequest {
                 // certificate doesn't have the entire chain.
                 Boolean loadTrustStore = (Boolean) tlsMap.get(LOAD_TRUST_STORE);
                 if (loadTrustStore != null && loadTrustStore) {
-                    TrustManager[] defaultTrusts = loadDefaultTrustStore();
+
                     String trustStoreName = (String) tlsMap.get(TRUST_STORE);;
                     String trustStorePass = (String) tlsMap.get(TRUST_STORE_PASS);
                     if(trustStorePass == null) {
-                        logger.error("Can not load the config:"  + TRUST_STORE_PASS, "client.yml");
+                        logger.error("Cannot load the config: "  + TRUST_STORE_PASS + " from client.yml");
                     }
                     if(logger.isInfoEnabled()) logger.info("Loading trust store from config at " + Encode.forJava(trustStoreName));
                     if (trustStoreName != null && trustStorePass != null) {
                         KeyStore trustStore = TlsUtil.loadTrustStore(trustStoreName, trustStorePass.toCharArray());
-
                         TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
                         trustManagerFactory.init(trustStore);
                         trustManagers = trustManagerFactory.getTrustManagers();
                     }
-                    if (defaultTrusts!=null && defaultTrusts.length>0) {
-                        trustManagerList.addAll(Arrays.asList(defaultTrusts));
+                    if (loadDefaultTrust != null && loadDefaultTrust) {
+                        TrustManager[] defaultTrusts = loadDefaultTrustStore();
+                        if (defaultTrusts!=null && defaultTrusts.length>0) {
+                            trustManagerList.addAll(Arrays.asList(defaultTrusts));
+                        }
                     }
                     if (trustManagers!=null && trustManagers.length>0) {
                         trustManagerList.addAll(Arrays.asList(trustManagers));
@@ -341,12 +332,20 @@ public class HttpClientRequest {
             }
 
             try {
-                sslContext = SSLContext.getInstance("TLS");
-                if (!trustManagerList.isEmpty()) {
-                    TLSConfig tlsConfig = TLSConfig.create(tlsMap, trustedNamesGroupKey);
-                    trustManagers = ClientX509ExtendedTrustManager.decorate(trustManagerList.toArray(new TrustManager[0]), tlsConfig);
+                String tlsVersion = (String)tlsMap.get(TLS_VERSION);
+                if(tlsVersion == null) tlsVersion = "TLSv1.2";
+                sslContext = SSLContext.getInstance(tlsVersion);
+                if (loadDefaultTrust != null && loadDefaultTrust && !trustManagerList.isEmpty()) {
+                    TrustManager[] compositeTrustManagers = {new CompositeX509TrustManager(convertTrustManagers(trustManagerList))};
+                    sslContext.init(keyManagers, compositeTrustManagers, null);
+                } else {
+                    if(trustManagers == null || trustManagers.length == 0) {
+                        logger.error("No trust store is loaded. Please check client.yml");
+                    } else {
+                        TrustManager[] extendedTrustManagers = {new ClientX509ExtendedTrustManager(trustManagerList)};
+                        sslContext.init(keyManagers, extendedTrustManagers, null);
+                    }
                 }
-                sslContext.init(keyManagers, trustManagers, null);
             } catch (NoSuchAlgorithmException | KeyManagementException e) {
                 throw new IOException("Unable to create and initialise the SSLContext", e);
             }
@@ -355,6 +354,16 @@ public class HttpClientRequest {
         }
 
         return sslContext;
+    }
+
+    public static List<X509TrustManager> convertTrustManagers(List<TrustManager> trustManagerList) {
+        List<X509TrustManager> x509TrustManagers = new ArrayList<>();
+        for (TrustManager trustManager : trustManagerList) {
+            if (trustManager instanceof X509TrustManager) {
+                x509TrustManagers.add((X509TrustManager) trustManager);
+            }
+        }
+        return x509TrustManagers;
     }
 
     public  static  TrustManager[] loadDefaultTrustStore() throws Exception {

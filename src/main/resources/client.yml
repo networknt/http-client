@@ -3,23 +3,17 @@
 # Settings for TLS
 tls:
   # if the server is using self-signed certificate, this need to be false. If true, you have to use CA signed certificate
-  # or load truststore that contains the self-signed cretificate.
+  # or load truststore that contains the self-signed certificate.
   verifyHostname: false
-  # The default trustedNames group used to created default SSL context. This is used to create Http2Client.SSL if set.
-  defaultGroupKey: trustedNames.local
-  # trusted hostnames, service names, service Ids, and so on.
-  # Note: localhost and 127.0.0.1 are not trustable hostname/ip in general. So, these values should not be used as trusted names in production.
-  trustedNames:
-    local: localhost
-    negativeTest: invalidhost
-    empty:
-  # trust store contains certifictes that server needs. Enable if tls is used.
+  # indicate of system load default cert.
+  loadDefaultTrustStore: true
+  # trust store contains certificates that server needs. Enable if tls is used.
   loadTrustStore: true
   # trust store location can be specified here or system properties javax.net.ssl.trustStore and password javax.net.ssl.trustStorePassword
   trustStore: client.truststore
   # trust store password
   trustStorePass: password
-  # key store contains client key and it should be loaded if two-way ssl is uesed.
+  # key store contains client key and it should be loaded if two-way ssl is used.
   loadKeyStore: false
   # key store location
   keyStore: client.keystore
@@ -29,26 +23,31 @@ tls:
   keyPass: password
   # public issued CA cert  password
   defaultCertPassword: changeit
+  # TLS version. Default is TSLv1.2, and you can downgrade to TLSv1 to support some internal old servers that support only TLSv1.1(deprecated
+  # and risky). You can also upgrade to TSLv1.3 for maximum security if all your servers support it.
+  tlsVersion: TLSv1.2
 # settings for OAuth2 server communication
 oauth:
   # OAuth 2.0 token endpoint configuration
+  # If there are multiple oauth providers per serviceId, then we need to update this flag to true. In order to derive the serviceId from the
+  # path prefix, we need to set up the pathPrefixServices below if there is no duplicated paths between services.
+  multipleAuthServers: false
   token:
     cache:
       #capacity of caching TOKENs
       capacity: 200
-    # The scope token will be renewed automatically 1 minutes before expiry
+    # The scope token will be renewed automatically 1 minute before expiry
     tokenRenewBeforeExpired: 60000
     # if scope token is expired, we need short delay so that we can retry faster.
     expiredRefreshRetryDelay: 2000
-    # if scope token is not expired but in renew windown, we need slow retry delay.
+    # if scope token is not expired but in renew window, we need slow retry delay.
     earlyRefreshRetryDelay: 4000
     # token server url. The default port number for token service is 6882. If this is set,
     # it will take high priority than serviceId for the direct connection
-    # server_url: ${client.tokenServerUrl:https://localhost:6882}
+    server_url: https://localhost:6882
     # token service unique id for OAuth 2.0 provider. If server_url is not set above,
     # a service discovery action will be taken to find an instance of token service.
     serviceId: com.networknt.oauth2-token-1.0.0
-    # set to true if the oauth2 provider supports HTTP/2
     # For users who leverage SaaS OAuth 2.0 provider from lightapi.net or others in the public cloud
     # and has an internal proxy server to access code, token and key services of OAuth 2.0, set up the
     # proxyHost here for the HTTPS traffic. This option is only working with server_url and serviceId
@@ -58,7 +57,8 @@ oauth:
     # a different port, please specify it here. If proxyHost is available and proxyPort is missing, then
     # the default value 443 is going to be used for the HTTP connection.
     proxyPort:
-    enableHttp2: true
+    # set to true if the oauth2 provider supports HTTP/2
+    enableHttp2: false
     # the following section defines uri and parameters for authorization code grant type
     authorization_code:
       # token endpoint for authorization code grant
@@ -71,14 +71,14 @@ oauth:
       redirect_uri: https://localhost:3000/authorization
       # optional scope, default scope in the client registration will be used if not defined.
       # If there are scopes specified here, they will be verified against the registered scopes.
-      # scope:
+      scope:
       # - petstore.r
       # - petstore.w
     # the following section defines uri and parameters for client credentials grant type
     client_credentials:
       # token endpoint for client credentials grant
       uri: /oauth2/token
-      # client_id for client credentials grant flow. client_secret is in secret.yml
+      # client_id for client credentials grant flow.
       client_id: f7d42348-c647-4efb-a52d-4c5787421e73
       # client_secret for client credentials grant flow.
       client_secret: f6h1FTI8Q3-7UScPZDzfXA
@@ -90,19 +90,19 @@ oauth:
     refresh_token:
       # token endpoint for refresh token grant
       uri: /oauth2/token
-      # client_id for refresh token grant flow. client_secret is in secret.yml
+      # client_id for refresh token grant flow.
       client_id: f7d42348-c647-4efb-a52d-4c5787421e73
       # client_secret for refresh token
       client_secret: f6h1FTI8Q3-7UScPZDzfXA
       # optional scope, default scope in the client registration will be used if not defined.
       # If there are scopes specified here, they will be verified against the registered scopes.
-      # scope:
+      scope:
       # - petstore.r
       # - petstore.w
     key:
       # key distribution server url for token verification. It will be used if it is configured.
       # If it is not set, a service lookup will be taken with serviceId to find an instance.
-      # server_url: ${client.tokenKeyServerUrl:https://localhost:6886}
+      server_url: https://localhost:6886
       # key serviceId for key distribution service, it will be used if above server_url is not configured.
       serviceId: com.networknt.oauth2-key-1.0.0
       # the path for the key distribution endpoint
@@ -113,6 +113,8 @@ oauth:
       client_secret: f6h1FTI8Q3-7UScPZDzfXA
       # set to true if the oauth2 provider supports HTTP/2
       enableHttp2: true
+      # audience for the token validation. It is optional and if it is not configured, no audience validation will be executed.
+      audience:
   # sign endpoint configuration
   sign:
     # token server url. The default port number for token service is 6882. If this url exists, it will be used.
@@ -154,6 +156,8 @@ oauth:
       client_secret: f6h1FTI8Q3-7UScPZDzfXA
       # set to true if the oauth2 provider supports HTTP/2
       enableHttp2: true
+      # audience for the token validation. It is optional and if it is not configured, no audience validation will be executed.
+      audience:
   # de-ref by reference token to JWT token. It is separate service as it might be the external OAuth 2.0 provider.
   deref:
     # Token service server url, this might be different than the above token server url. The static url will be used if it is configured.
@@ -184,15 +188,19 @@ request:
   timeout: 3000
   # reset the circuit after this timeout in millisecond
   resetTimeout: 7000
-  # if open tracing is enable. traceability, correlation and metrics should not be in the chain if opentracing is used.
-  injectOpenTracing: true
+  # if open tracing is enabled. traceability, correlation and metrics should not be in the chain if opentracing is used.
+  injectOpenTracing: false
   # inject serviceId as callerId into the http header for metrics to collect the caller. The serviceId is from server.yml
   injectCallerId: false
   # the flag to indicate whether http/2 is enabled when calling client.callService()
   enableHttp2: true
   # the maximum host capacity of connection pool
   connectionPoolSize: 1000
-  # the maximum request limitation for each connection
+  # Connection expire time when connection pool is used. By default, the cached connection will be closed after 30 minutes.
+  # This is one way to force the connection to be closed so that the client-side discovery can be balanced.
+  connectionExpireTime: 1800000
+  # The maximum request limitation for each connection in the connection pool. By default, a connection will be closed after
+  # sending 1 million requests. This is one way to force the client-side discovery to re-balance the connections.
   maxReqPerConn: 1000000
   # maximum quantity of connection in connection pool for each host
   maxConnectionNumPerHost: 1000
