@@ -16,8 +16,8 @@
 
 package com.networknt.http.client;
 
-import com.networknt.http.client.monad.Status;
 import com.networknt.http.client.oauth.TokenRequest;
+import com.networknt.status.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

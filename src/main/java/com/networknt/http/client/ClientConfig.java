@@ -21,6 +21,8 @@ public final class ClientConfig {
     public static final String URI = "uri";
     public static final String CLIENT_ID = "client_id";
     public static final String SCOPE = "scope";
+    public static final String AUDIENCE = "audience";
+
     public static final String CSRF = "csrf";
     public static final String REDIRECT_URI = "redirect_uri";
     public static final String REFRESH_TOKEN = "refresh_token";
@@ -31,6 +33,11 @@ public final class ClientConfig {
     public static final String CACHE = "cache";
     public static final String CAPACITY = "capacity";
     public static final String OAUTH = "oauth";
+    public static final String MULTIPLE_AUTH_SERVERS = "multipleAuthServers";
+    public static final String PATH_PREFIX_SERVICES = "pathPrefixServices";
+    public static final String SERVICE_ID_AUTH_SERVERS = "serviceIdAuthServers";
+    public static final String KEY = "key";
+
     public static final String CLIENT_SECRET = "client_secret";
 
     public static final String ENABLE_HTTP2 = "enableHttp2";
@@ -64,7 +71,8 @@ public final class ClientConfig {
     public static final String DEREF = "deref";
     public static final String SIGN = "sign";
     private Map<String, Object> mappedConfig = null;
-
+    private boolean multipleAuthServers;
+    private Map<String, Object> oauthConfig;
     private Map<String, Object> tokenConfig;
     private Map<String, Object> derefConfig;
     private Map<String, Object> signConfig;
@@ -171,23 +179,31 @@ public final class ClientConfig {
             bufferSize = (int) bufferSizeObject;
         }
     }
+    private void setOAuthConfig() {
+        oauthConfig = (Map<String, Object>)mappedConfig.get(OAUTH);
+        if (oauthConfig != null && oauthConfig.get(MULTIPLE_AUTH_SERVERS) != null) {
+            multipleAuthServers = (Boolean)oauthConfig.get(MULTIPLE_AUTH_SERVERS);
+        } else {
+            multipleAuthServers = false;
+        }
+    }
 
     private void setTokenConfig() {
-        Map<String, Object> oauthConfig = (Map<String, Object>)mappedConfig.get(OAUTH);
+        oauthConfig = (Map<String, Object>)mappedConfig.get(OAUTH);
         if (oauthConfig != null) {
             tokenConfig = (Map<String, Object>)oauthConfig.get(TOKEN);
         }
     }
 
     private void setDerefConfig() {
-        Map<String, Object> oauthConfig = (Map<String, Object>)mappedConfig.get(OAUTH);
+        oauthConfig = (Map<String, Object>)mappedConfig.get(OAUTH);
         if (oauthConfig != null) {
             derefConfig = (Map<String, Object>)oauthConfig.get(DEREF);
         }
     }
 
     private void setSignConfig() {
-        Map<String, Object> oauthConfig = (Map<String, Object>)mappedConfig.get(OAUTH);
+        oauthConfig = (Map<String, Object>)mappedConfig.get(OAUTH);
         if (oauthConfig != null) {
             signConfig = (Map<String, Object>)oauthConfig.get(SIGN);
         }
@@ -262,4 +278,6 @@ public final class ClientConfig {
     public int getMinConnectionNumPerHost() {
         return minConnectionNumPerHost;
     }
+    public boolean isMultipleAuthServers() { return multipleAuthServers; }
+
 }

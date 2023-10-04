@@ -1,9 +1,9 @@
 package com.networknt.http.client.oauth;
 
 import com.networknt.http.client.ClientConfig;
-import com.networknt.http.client.monad.Result;
 import com.networknt.http.client.oauth.cache.ICacheStrategy;
 import com.networknt.http.client.oauth.cache.LongestExpireCacheStrategy;
+import com.networknt.monad.Result;
 
 import java.util.Map;
 import java.util.Set;

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.networknt.http.client;
+package com.networknt.http.client.oauth;
 
 /**
  * This is the generic key request with an id as parameter. The static serverUrl will be used if
@@ -35,6 +35,7 @@ public class KeyRequest {
     protected String clientSecret;
     protected boolean enableHttp2;
     protected String kid;
+    protected String audience;
 
     public KeyRequest(String kid) {
         this.kid = kid;
@@ -107,4 +108,28 @@ public class KeyRequest {
     public void setProxyPort(int proxyPort) {
         this.proxyPort = proxyPort;
     }
+    public String getAudience() {
+        return audience;
+    }
+
+    public void setAudience(String audience) {
+        this.audience = audience;
+    }
+
+    @Override
+    public String toString() {
+        return "KeyRequest{" +
+                "serverUrl='" + serverUrl + '\'' +
+                ", proxyHost='" + proxyHost + '\'' +
+                ", proxyPort=" + proxyPort +
+                ", serviceId='" + serviceId + '\'' +
+                ", uri='" + uri + '\'' +
+                ", clientId='" + clientId + '\'' +
+                ", clientSecret='" + clientSecret + '\'' +
+                ", enableHttp2=" + enableHttp2 +
+                ", audience='" + audience + '\'' +
+                ", kid='" + kid + '\'' +
+                '}';
+    }
+
 }

@@ -17,7 +17,7 @@
 package com.networknt.http.client.oauth;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.networknt.http.client.monad.Status;
+import com.networknt.status.Status;
 
 
 /**

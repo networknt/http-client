@@ -45,6 +45,7 @@
     <properties>
         <java.version>11</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <version.light-4j>2.1.27-SNAPSHOT</version.light-4j>
         <version.snakeyaml>2.0</version.snakeyaml>
         <version.slf4j>1.7.32</version.slf4j>
         <version.common-lang3>3.5</version.common-lang3>
@@ -59,7 +60,21 @@
         <version.maven-surefire>2.22.2</version.maven-surefire>
     </properties>
     <dependencies>
-
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>status</artifactId>
+            <version>${version.light-4j}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>monad-result</artifactId>
+            <version>${version.light-4j}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>config</artifactId>
+            <version>${version.light-4j}</version>
+        </dependency>
         <dependency>
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>

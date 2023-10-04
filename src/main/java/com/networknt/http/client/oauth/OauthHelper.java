@@ -15,13 +15,13 @@
  */
 package com.networknt.http.client.oauth;
 
+import com.networknt.exception.ClientException;
 import com.networknt.http.client.*;
-import com.networknt.http.client.exception.ClientException;
-import com.networknt.http.client.monad.Failure;
-import com.networknt.http.client.monad.Result;
-import com.networknt.http.client.monad.Status;
-import com.networknt.http.client.monad.Success;
 import com.networknt.http.client.ssl.TLSConfig;
+import com.networknt.monad.Failure;
+import com.networknt.monad.Result;
+import com.networknt.monad.Success;
+import com.networknt.status.Status;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

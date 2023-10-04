@@ -1,13 +1,12 @@
 package com.networknt.http.client;
 
-import com.networknt.http.client.monad.Failure;
-import com.networknt.http.client.monad.Result;
+import com.networknt.config.TlsUtil;
 import com.networknt.http.client.oauth.Jwt;
 import com.networknt.http.client.oauth.TokenManager;
 import com.networknt.http.client.ssl.ClientX509ExtendedTrustManager;
 import com.networknt.http.client.ssl.CompositeX509TrustManager;
-import com.networknt.http.client.ssl.TLSConfig;
-import com.networknt.http.client.ssl.TlsUtil;
+import com.networknt.monad.Failure;
+import com.networknt.monad.Result;
 import org.apache.commons.lang3.StringUtils;
 import org.owasp.encoder.Encode;
 import org.slf4j.Logger;
