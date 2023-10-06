@@ -1,22 +1,6 @@
-/*
- * Copyright (c) 2016 Network New Technologies Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+package com.networknt.http.client.oauth;
 
-package com.networknt.http.client;
-
-import com.networknt.http.client.oauth.TokenRequest;
+import com.networknt.http.client.ClientConfig;
 import com.networknt.status.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,21 +8,28 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Created by steve on 02/09/16.
- */
-public class AuthorizationCodeRequest extends TokenRequest {
-    private static final Logger logger = LoggerFactory.getLogger(AuthorizationCodeRequest.class);
+public class ClientAuthenticatedUserRequest extends TokenRequest {
+    private static final Logger logger = LoggerFactory.getLogger(ClientAuthenticatedUserRequest.class);
     private static final String CONFIG_PROPERTY_MISSING = "ERR10057";
-    private String authCode;
+    private String userType;
+    private String userId;
+    private String roles;
     private String redirectUri;
+
     /**
-     * load default values from client.json for authorization code grant, overwrite by setters
+     * load default values from client.yml for client authenticated user grant, overwrite by setters
      * in case you want to change it at runtime.
+     * @param userType user type
+     * @param userId user id
+     * @param roles user roles
      */
-    public AuthorizationCodeRequest() {
-        setGrantType(ClientConfig.AUTHORIZATION_CODE);
-        Map<String, Object> tokenConfig = ClientConfig.get().getTokenConfig();
+    public ClientAuthenticatedUserRequest(String userType, String userId, String roles) {
+        setGrantType(ClientConfig.CLIENT_AUTHENTICATED_USER);
+        setUserType(userType);
+        setUserId(userId);
+        setRoles(roles);
+        ClientConfig clientConfig = ClientConfig.load();
+        Map<String, Object> tokenConfig = clientConfig.getTokenConfig();
         if(tokenConfig != null) {
             setServerUrl((String)tokenConfig.get(ClientConfig.SERVER_URL));
             setProxyHost((String)tokenConfig.get(ClientConfig.PROXY_HOST));
@@ -62,12 +53,28 @@ public class AuthorizationCodeRequest extends TokenRequest {
         }
     }
 
-    public String getAuthCode() {
-        return authCode;
+    public String getUserType() {
+        return userType;
     }
 
-    public void setAuthCode(String authCode) {
-        this.authCode = authCode;
+    public void setUserType(String userType) {
+        this.userType = userType;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
+    public String getRoles() {
+        return roles;
+    }
+
+    public void setRoles(String roles) {
+        this.roles = roles;
     }
 
     public String getRedirectUri() {
@@ -77,4 +84,5 @@ public class AuthorizationCodeRequest extends TokenRequest {
     public void setRedirectUri(String redirectUri) {
         this.redirectUri = redirectUri;
     }
+
 }

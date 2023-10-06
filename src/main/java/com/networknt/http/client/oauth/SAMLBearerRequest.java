@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package com.networknt.http.client;
+package com.networknt.http.client.oauth;
 
 
-import com.networknt.http.client.oauth.TokenRequest;
+import com.networknt.http.client.ClientConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,12 +32,12 @@ import java.util.Map;
 public class SAMLBearerRequest extends TokenRequest {
 
     // x-www-urlencoded keys / values sent to OAuth server for SAML grant flow
-    static final String CLIENT_ASSERTION_TYPE_KEY = "client_assertion_type";
-    static final String CLIENT_ASSERTION_TYPE_VALUE = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
-    static final String CLIENT_ASSERTION_KEY = "client_assertion"; // value is JWT
-    static final String ASSERTION_KEY = "assertion"; // value is SAML token
-    static final String GRANT_TYPE_KEY = "grant_type";
-    static final String GRANT_TYPE_VALUE = "urn:ietf:params:oauth:grant-type:saml2-bearer";
+    public static final String CLIENT_ASSERTION_TYPE_KEY = "client_assertion_type";
+    public static final String CLIENT_ASSERTION_TYPE_VALUE = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
+    public static final String CLIENT_ASSERTION_KEY = "client_assertion"; // value is JWT
+    public static final String ASSERTION_KEY = "assertion"; // value is SAML token
+    public static final String GRANT_TYPE_KEY = "grant_type";
+    public static final String GRANT_TYPE_VALUE = "urn:ietf:params:oauth:grant-type:saml2-bearer";
 
     private String samlAssertion;
     private String jwtClientAssertion;
@@ -50,8 +50,8 @@ public class SAMLBearerRequest extends TokenRequest {
         this.jwtClientAssertion = jwtClientAssertion;
 
         try {
-            Map<String, Object> tokenConfig = ClientConfig.get().getTokenConfig();
-
+            ClientConfig clientConfig = ClientConfig.load();
+            Map<String, Object> tokenConfig = clientConfig.getTokenConfig();
             setServerUrl((String)tokenConfig.get(ClientConfig.SERVER_URL));
             setProxyHost((String)tokenConfig.get(ClientConfig.PROXY_HOST));
             int port = tokenConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : (Integer)tokenConfig.get(ClientConfig.PROXY_PORT);

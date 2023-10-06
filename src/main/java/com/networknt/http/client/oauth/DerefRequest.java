@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package com.networknt.http.client;
+package com.networknt.http.client.oauth;
 
+import com.networknt.http.client.ClientConfig;
 import com.networknt.status.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +37,8 @@ public class DerefRequest {
     private boolean enableHttp2;
 
     public DerefRequest(String token) {
-        Map<String, Object> derefConfig = ClientConfig.get().getDerefConfig();
+        ClientConfig clientConfig = ClientConfig.load();
+        Map<String, Object> derefConfig = clientConfig.getDerefConfig();
         if(derefConfig != null) {
             setServerUrl((String)derefConfig.get(ClientConfig.SERVER_URL));
             setProxyHost((String)derefConfig.get(ClientConfig.PROXY_HOST));

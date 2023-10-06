@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-package com.networknt.http.client;
+package com.networknt.http.client.oauth;
+
+import com.networknt.http.client.ClientConfig;
 
 import java.util.Map;
 
@@ -41,7 +43,8 @@ public class SignRequest {
     private Map<String, Object> payload;
 
     public SignRequest() {
-        Map<String, Object> signConfig = ClientConfig.get().getSignConfig();
+        ClientConfig clientConfig = ClientConfig.load();
+        Map<String, Object> signConfig = clientConfig.getSignConfig();
         if(signConfig != null) {
             setServerUrl((String)signConfig.get(ClientConfig.SERVER_URL));
             setProxyHost((String)signConfig.get(ClientConfig.PROXY_HOST));

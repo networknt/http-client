@@ -1,17 +1,14 @@
 package com.networknt.http.client;
 
+import com.networknt.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.yaml.snakeyaml.Yaml;
-
-import java.io.IOException;
-import java.io.InputStream;
 import java.net.http.HttpClient;
 import java.util.Map;
 
 
 public final class ClientConfig {
-
+    private static final Logger logger = LoggerFactory.getLogger(ClientConfig.class);
     public static final String CONFIG_NAME = "client";
     public static final String REQUEST = "request";
     public static final String SERVER_URL = "server_url";
@@ -19,10 +16,10 @@ public final class ClientConfig {
     public static final String PROXY_PORT = "proxyPort";
     public static final String SERVICE_ID = "serviceId";
     public static final String URI = "uri";
+    public static final String TLS = "tls";
     public static final String CLIENT_ID = "client_id";
     public static final String SCOPE = "scope";
     public static final String AUDIENCE = "audience";
-
     public static final String CSRF = "csrf";
     public static final String REDIRECT_URI = "redirect_uri";
     public static final String REFRESH_TOKEN = "refresh_token";
@@ -37,9 +34,7 @@ public final class ClientConfig {
     public static final String PATH_PREFIX_SERVICES = "pathPrefixServices";
     public static final String SERVICE_ID_AUTH_SERVERS = "serviceIdAuthServers";
     public static final String KEY = "key";
-
     public static final String CLIENT_SECRET = "client_secret";
-
     public static final String ENABLE_HTTP2 = "enableHttp2";
     public static final String TIMEOUT = "timeout";
     public static final String TOKEN = "token";
@@ -49,7 +44,6 @@ public final class ClientConfig {
     public static final int DEFAULT_RESET_TIMEOUT = 600000;
     public static final boolean DEFAULT_INJECT_OPEN_TRACING = false;
     public static final boolean DEFAULT_INJECT_CALLER_ID = false;
-    private static final String BUFFER_SIZE = "bufferSize";
     private static final String ERROR_THRESHOLD = "errorThreshold";
     private static final String RESET_TIMEOUT = "resetTimeout";
     private static final String INJECT_OPEN_TRACING = "injectOpenTracing";
@@ -70,13 +64,6 @@ public final class ClientConfig {
     private static final String MIN_CONNECTION_NUM_PER_HOST = "minConnectionNumPerHost";
     public static final String DEREF = "deref";
     public static final String SIGN = "sign";
-    private Map<String, Object> mappedConfig = null;
-    private boolean multipleAuthServers;
-    private Map<String, Object> oauthConfig;
-    private Map<String, Object> tokenConfig;
-    private Map<String, Object> derefConfig;
-    private Map<String, Object> signConfig;
-    private int bufferSize = DEFAULT_BUFFER_SIZE;
     private int resetTimeout = DEFAULT_RESET_TIMEOUT;
     private int timeout = DEFAULT_TIMEOUT;
     private int errorThreshold = DEFAULT_ERROR_THRESHOLD;
@@ -88,48 +75,68 @@ public final class ClientConfig {
     private long connectionExpireTime = DEFAULT_CONNECTION_EXPIRE_TIME;
     private int maxConnectionNumPerHost = DEFAULT_MAX_CONNECTION_PER_HOST;
     private int minConnectionNumPerHost = DEFAULT_MIN_CONNECTION_PER_HOST;
-    private Logger logger = LoggerFactory.getLogger(ClientConfig.class);
 
-    private static ClientConfig instance;
-    private ClientConfig() {
-        Yaml yaml= new Yaml();
-
-        try (InputStream yamlIn = this.getClass().getClassLoader().getResourceAsStream(CONFIG_NAME + ".yaml")) {
-            if (yamlIn == null) {
-                try (InputStream ymlIn = this.getClass().getClassLoader().getResourceAsStream(CONFIG_NAME + ".yml")) {
-                    if (ymlIn == null) {
-                        logger.error("initial failed; cannot load client config file client.yml or client.yaml");
-                    } else {
-                        mappedConfig = yaml.load(ymlIn);
-                    }
-                }
-            } else {
-                mappedConfig = yaml.load(yamlIn);
-            }
-        } catch (IOException e) {
-            logger.error("IOException while loading client.yml or client.yaml");
-        }
-        if (mappedConfig != null) {
-            setBufferSize();
-            setTokenConfig();
-            setRequestConfig();
-            setDerefConfig();
-            setSignConfig();
-        }
-    }
-
-    public static ClientConfig get() {
-        if (instance == null) {
-            instance = new ClientConfig();
-        }
-        return instance;
+    private final Config config;
+    private Map<String, Object> mappedConfig;
+    private Map<String, Object> tlsConfig;
+    private boolean multipleAuthServers;
+    private Map<String, Object> oauthConfig;
+    private Map<String, Object> tokenConfig;
+    private Map<String, Object> derefConfig;
+    private Map<String, Object> signConfig;
+    private Map<String, String> pathPrefixServices;
+    public ClientConfig() {
+        this(CONFIG_NAME);
     }
 
     /**
-     * For testing purpose
+     * Please note that this constructor is only for testing to load different config files
+     * to test different configurations.
+     * @param configName String
      */
-    static void reset() {
-        instance = null;
+    private ClientConfig(String configName) {
+        config = Config.getInstance();
+        mappedConfig = config.getJsonMapConfigNoCache(configName);
+        if(mappedConfig != null) {
+            setRequestConfig();
+            setTlsConfig();
+            setOAuthConfig();
+            if(multipleAuthServers) {
+                setPathPrefixServices();
+            }
+        }
+    }
+
+    public static ClientConfig load() {
+        return new ClientConfig();
+    }
+
+    public static ClientConfig load(String configName) {
+        return new ClientConfig(configName);
+    }
+
+    void reload() {
+        mappedConfig = config.getJsonMapConfigNoCache(CONFIG_NAME);
+        if(mappedConfig != null) {
+            setRequestConfig();
+            setTlsConfig();
+            setOAuthConfig();
+            if(multipleAuthServers) {
+                setPathPrefixServices();
+            }
+        }
+    }
+    public Map<String, Object> getMappedConfig() {
+        return mappedConfig;
+    }
+
+
+    private void setTlsConfig() {
+        tlsConfig = (Map<String, Object>)mappedConfig.get(TLS);
+    }
+
+    public Map<String, Object> getTlsConfig() {
+        return tlsConfig;
     }
 
     private void setRequestConfig() {
@@ -138,14 +145,14 @@ public final class ClientConfig {
         }
         Map<String, Object> requestConfig = (Map<String, Object>) mappedConfig.get(REQUEST);
 
-        if (requestConfig.containsKey(RESET_TIMEOUT)) {
-            resetTimeout = (int) requestConfig.get(RESET_TIMEOUT);
-        }
         if (requestConfig.containsKey(ERROR_THRESHOLD)) {
             errorThreshold = (int) requestConfig.get(ERROR_THRESHOLD);
         }
         if (requestConfig.containsKey(TIMEOUT)) {
             timeout = (int) requestConfig.get(TIMEOUT);
+        }
+        if (requestConfig.containsKey(RESET_TIMEOUT)) {
+            resetTimeout = (int) requestConfig.get(RESET_TIMEOUT);
         }
         if(requestConfig.containsKey(INJECT_OPEN_TRACING)) {
             injectOpenTracing = (Boolean) requestConfig.get(INJECT_OPEN_TRACING);
@@ -153,17 +160,17 @@ public final class ClientConfig {
         if(requestConfig.containsKey(INJECT_CALLER_ID)) {
             injectCallerId = (Boolean) requestConfig.get(INJECT_CALLER_ID);
         }
+        if (requestConfig.containsKey(ENABLE_HTTP2)) {
+            this.httpVersion = (boolean) requestConfig.get(ENABLE_HTTP2) ? HttpClient.Version.HTTP_2 : HttpClient.Version.HTTP_1_1;
+        }
         if (requestConfig.containsKey(CONNECTION_POOL_SIZE)) {
             connectionPoolSize = (int) requestConfig.get(CONNECTION_POOL_SIZE);
         }
-        if (requestConfig.containsKey(ENABLE_HTTP2)) {
-            this.httpVersion = (boolean) requestConfig.get(ENABLE_HTTP2)? HttpClient.Version.HTTP_2: HttpClient.Version.HTTP_1_1;
+        if (requestConfig.containsKey(CONNECTION_EXPIRE_TIME)) {
+            connectionExpireTime = Long.parseLong(requestConfig.get(CONNECTION_EXPIRE_TIME).toString());
         }
         if (requestConfig.containsKey(MAX_REQUEST_PER_CONNECTION)) {
             maxReqPerConn = (int) requestConfig.get(MAX_REQUEST_PER_CONNECTION);
-        }
-        if (requestConfig.containsKey(CONNECTION_EXPIRE_TIME)) {
-            connectionExpireTime = Long.parseLong(requestConfig.get(CONNECTION_EXPIRE_TIME).toString());
         }
         if (requestConfig.containsKey(MAX_CONNECTION_NUM_PER_HOST)) {
             maxConnectionNumPerHost = (int) requestConfig.get(MAX_CONNECTION_NUM_PER_HOST);
@@ -173,50 +180,29 @@ public final class ClientConfig {
         }
     }
 
-    private void setBufferSize() {
-        Object bufferSizeObject = mappedConfig.get(BUFFER_SIZE);
-        if (bufferSizeObject != null) {
-            bufferSize = (int) bufferSizeObject;
+    private void setPathPrefixServices() {
+        if (mappedConfig.get(PATH_PREFIX_SERVICES) != null && mappedConfig.get(PATH_PREFIX_SERVICES) instanceof Map) {
+            pathPrefixServices = (Map)mappedConfig.get(PATH_PREFIX_SERVICES);
         }
     }
-    private void setOAuthConfig() {
-        oauthConfig = (Map<String, Object>)mappedConfig.get(OAUTH);
-        if (oauthConfig != null && oauthConfig.get(MULTIPLE_AUTH_SERVERS) != null) {
-            multipleAuthServers = (Boolean)oauthConfig.get(MULTIPLE_AUTH_SERVERS);
-        } else {
-            multipleAuthServers = false;
-        }
-    }
+    public Map<String, String> getPathPrefixServices() { return pathPrefixServices; }
 
-    private void setTokenConfig() {
+    private void setOAuthConfig() {
         oauthConfig = (Map<String, Object>)mappedConfig.get(OAUTH);
         if (oauthConfig != null) {
             tokenConfig = (Map<String, Object>)oauthConfig.get(TOKEN);
-        }
-    }
-
-    private void setDerefConfig() {
-        oauthConfig = (Map<String, Object>)mappedConfig.get(OAUTH);
-        if (oauthConfig != null) {
             derefConfig = (Map<String, Object>)oauthConfig.get(DEREF);
-        }
-    }
-
-    private void setSignConfig() {
-        oauthConfig = (Map<String, Object>)mappedConfig.get(OAUTH);
-        if (oauthConfig != null) {
             signConfig = (Map<String, Object>)oauthConfig.get(SIGN);
+            if(oauthConfig.get(MULTIPLE_AUTH_SERVERS) != null) {
+                multipleAuthServers = (Boolean)oauthConfig.get(MULTIPLE_AUTH_SERVERS);
+            } else {
+                multipleAuthServers = false;
+            }
         }
     }
-
-    public int getBufferSize() {
-        return bufferSize;
+    public Map<String, Object> getOauthConfig() {
+        return oauthConfig;
     }
-
-    public Map<String, Object> getMappedConfig() {
-        return mappedConfig;
-    }
-
     public Map<String, Object> getTokenConfig() {
         return tokenConfig;
     }
@@ -259,7 +245,7 @@ public final class ClientConfig {
         return maxReqPerConn;
     }
 
-    protected void setEnableHttp2(boolean isRequestEnableHttp2) {
+    private void setEnableHttp2(boolean isRequestEnableHttp2) {
         if (isRequestEnableHttp2) {
             this.httpVersion = HttpClient.Version.HTTP_2;
         } else {

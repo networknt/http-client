@@ -23,7 +23,8 @@ public class TokenManager {
 
     private TokenManager() {
         //set CAPACITY based on config
-        Map<String, Object> tokenConfig = ClientConfig.get().getTokenConfig();
+        ClientConfig clientConfig = ClientConfig.load();
+        Map<String, Object> tokenConfig = clientConfig.getTokenConfig();
         if(tokenConfig != null) {
             Map<String, Object> cacheConfig = (Map<String, Object>)tokenConfig.get(ClientConfig.CACHE);
             if(cacheConfig != null) {

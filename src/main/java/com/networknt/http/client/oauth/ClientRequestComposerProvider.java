@@ -1,7 +1,7 @@
-package com.networknt.http.client;
+package com.networknt.http.client.oauth;
 
-import com.networknt.http.client.oauth.OauthHelper;
-import com.networknt.http.client.oauth.TokenRequest;
+import com.networknt.http.client.Headers;
+import com.networknt.http.client.IClientRequestComposable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,7 +12,7 @@ import java.net.http.HttpRequest;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.networknt.http.client.ClientRequestComposerProvider.ClientRequestComposers.*;
+import static com.networknt.http.client.oauth.ClientRequestComposerProvider.ClientRequestComposers.*;
 
 /**
  * This class is a singleton to provide registered IClientRequestComposable composers.

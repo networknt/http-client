@@ -46,7 +46,8 @@ public class Jwt {
     private static long earlyRefreshRetryDelay;
 
     public Jwt() {
-        Map<String, Object> tokenConfig = ClientConfig.get().getTokenConfig();
+        ClientConfig clientConfig = ClientConfig.load();
+        Map<String, Object> tokenConfig = clientConfig.getTokenConfig();
         if(tokenConfig != null) {
             tokenRenewBeforeExpired = (Integer) tokenConfig.get(ClientConfig.TOKEN_RENEW_BEFORE_EXPIRED);
             expiredRefreshRetryDelay = (Integer)tokenConfig.get(ClientConfig.EXPIRED_REFRESH_RETRY_DELAY);

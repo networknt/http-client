@@ -34,7 +34,7 @@ import java.util.concurrent.ExecutorService;
 public class HttpClientRequest {
 
     private  static Logger logger = LoggerFactory.getLogger(HttpClientRequest.class);
-    private ClientConfig clientConfig;
+    private static ClientConfig clientConfig = ClientConfig.load();
     HttpClient httpClient;
 
     public static final String TLS = "tls";
@@ -60,7 +60,6 @@ public class HttpClientRequest {
     private ExecutorService executorService = null;
 
     public HttpClientRequest() {
-        clientConfig = ClientConfig.get();
     }
 
     /**
@@ -261,7 +260,7 @@ public class HttpClientRequest {
     public static SSLContext createSSLContext() throws IOException {
         SSLContext sslContext = null;
         KeyManager[] keyManagers = null;
-        Map<String, Object> tlsMap = (Map<String, Object>)ClientConfig.get().getMappedConfig().get(TLS);
+        Map<String, Object> tlsMap = clientConfig.getTlsConfig();
         if(tlsMap != null) {
             try {
                 // load key store for client certificate if two way ssl is used.
@@ -368,7 +367,7 @@ public class HttpClientRequest {
     public  static  TrustManager[] loadDefaultTrustStore() throws Exception {
         Path location = null;
         String password = "changeit"; //default value for cacerts, we can override it from config
-        Map<String, Object> tlsMap = (Map<String, Object>)ClientConfig.get().getMappedConfig().get(TLS);
+        Map<String, Object> tlsMap = clientConfig.getTlsConfig();
         if(tlsMap != null &&  tlsMap.get(DEFAULT_CERT_PASS)!=null) {
             password = (String)tlsMap.get(DEFAULT_CERT_PASS);
         }

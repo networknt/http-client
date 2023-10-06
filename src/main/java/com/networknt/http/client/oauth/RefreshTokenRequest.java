@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package com.networknt.http.client;
+package com.networknt.http.client.oauth;
 
 
-import com.networknt.http.client.oauth.TokenRequest;
+import com.networknt.http.client.ClientConfig;
 import com.networknt.status.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +33,8 @@ public class RefreshTokenRequest extends TokenRequest {
 
     public RefreshTokenRequest() {
         setGrantType(ClientConfig.REFRESH_TOKEN);
-        Map<String, Object> tokenConfig = ClientConfig.get().getTokenConfig();
+        ClientConfig clientConfig = ClientConfig.load();
+        Map<String, Object> tokenConfig = clientConfig.getTokenConfig();
         if(tokenConfig != null) {
             setServerUrl((String)tokenConfig.get(ClientConfig.SERVER_URL));
             setProxyHost((String)tokenConfig.get(ClientConfig.PROXY_HOST));
