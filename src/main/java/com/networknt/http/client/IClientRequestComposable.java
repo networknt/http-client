@@ -1,8 +1,7 @@
 package com.networknt.http.client;
 
 
-import com.networknt.http.client.oauth.TokenRequest;
-
+import com.networknt.client.oauth.TokenRequest;
 import java.net.http.HttpRequest;
 
 /**
