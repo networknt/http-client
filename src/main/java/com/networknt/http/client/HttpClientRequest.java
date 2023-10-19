@@ -1,8 +1,9 @@
 package com.networknt.http.client;
 
+import com.networknt.client.ClientConfig;
+import com.networknt.client.oauth.Jwt;
+import com.networknt.client.oauth.TokenManager;
 import com.networknt.config.TlsUtil;
-import com.networknt.http.client.oauth.Jwt;
-import com.networknt.http.client.oauth.TokenManager;
 import com.networknt.http.client.ssl.ClientX509ExtendedTrustManager;
 import com.networknt.http.client.ssl.CompositeX509TrustManager;
 import com.networknt.monad.Failure;
@@ -34,7 +35,7 @@ import java.util.concurrent.ExecutorService;
 public class HttpClientRequest {
 
     private  static Logger logger = LoggerFactory.getLogger(HttpClientRequest.class);
-    private static ClientConfig clientConfig = ClientConfig.load();
+    private static ClientConfig clientConfig = ClientConfig.get();
     HttpClient httpClient;
 
     public static final String TLS = "tls";
@@ -95,7 +96,6 @@ public class HttpClientRequest {
     protected HttpClient buildHttpClient(ClientConfig clientConfig, boolean isHttps) {
 
         HttpClient.Builder clientBuilder =  HttpClient.newBuilder()
-                .version(clientConfig.getHttpVersion())
                 .connectTimeout(Duration.ofMillis(clientConfig.getTimeout()));
         if (isHttps) {
             try {
@@ -104,7 +104,11 @@ public class HttpClientRequest {
                 logger.error("cannot initial http client:" + e);
             }
         }
-
+        if (clientConfig.getRequestEnableHttp2()) {
+            clientBuilder.version(HttpClient.Version.HTTP_2);
+        } else {
+            clientBuilder.version(HttpClient.Version.HTTP_1_1);
+        }
         if(this.proxyHost != null) clientBuilder.proxy(ProxySelector.of(new InetSocketAddress(this.proxyHost, this.proxyPort == 0 ? 443 : this.proxyPort)));
         if(this.authenticator != null)  clientBuilder.authenticator(this.authenticator);
         if(this.executorService != null)  clientBuilder.executor(this.executorService);
@@ -190,12 +194,14 @@ public class HttpClientRequest {
     /**
      * Add Client Credentials token cached in the client for standalone application
      *
-     *
      * @param builder the http request builder
+     * @param requestPath the request path
+     * @param scopes the scopes
+     * @param serviceId the service id
      * @return Result when fail to get jwt, it will return a Status.
      */
-    public Result addCcToken(HttpRequest.Builder builder) {
-        Result<Jwt> result = tokenManager.getJwt();
+    public Result addCcToken(HttpRequest.Builder builder, String requestPath, String scopes, String serviceId) {
+        Result<Jwt> result = tokenManager.getJwt(requestPath, scopes, serviceId);
         if(result.isFailure()) { return Failure.of(result.getError()); }
         builder.setHeader(Headers.AUTHORIZATION_STRING,  "Bearer " + result.getResult().getJwt());
         return result;
@@ -209,10 +215,13 @@ public class HttpClientRequest {
      *
      * @param builder the http request builder
      * @param authToken the authorization token
+     * @param requestPath the request path
+     * @param scopes the scopes
+     * @param serviceId the service id
      * @return Result when fail to get jwt, it will return a Status.
      */
-    public Result populateHeader(HttpRequest.Builder builder, String authToken) {
-        Result<Jwt> result = tokenManager.getJwt();
+    public Result populateHeader(HttpRequest.Builder builder, String authToken, String requestPath, String scopes, String serviceId) {
+        Result<Jwt> result = tokenManager.getJwt(requestPath, scopes, serviceId);
         if(result.isFailure()) { return Failure.of(result.getError()); }
         if(authToken == null) {
             authToken = "Bearer " + result.getResult().getJwt();
