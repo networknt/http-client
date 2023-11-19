@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.networknt</groupId>
     <artifactId>http-client</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4</version>
     <packaging>jar</packaging>
     <description>generic http client module</description>
     <url>https://github.com/networknt/http-client</url>
@@ -45,12 +45,12 @@
     <properties>
         <java.version>11</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <version.light-4j>2.1.28</version.light-4j>
-        <version.snakeyaml>2.0</version.snakeyaml>
-        <version.slf4j>1.7.32</version.slf4j>
+        <version.light-4j>2.1.29</version.light-4j>
+        <version.snakeyaml>2.2</version.snakeyaml>
+        <version.slf4j>2.0.7</version.slf4j>
         <version.common-lang3>3.5</version.common-lang3>
         <version.encoder>1.2.1</version.encoder>
-        <version.jackson>2.15.2</version.jackson>
+        <version.jackson>2.15.3</version.jackson>
         <version.logback>1.4.11</version.logback>
         <version.junit>5.8.1</version.junit>
         <version.mockito>2.7.21</version.mockito>
@@ -82,7 +82,7 @@
         </dependency>
         <dependency>
             <groupId>com.networknt</groupId>
-            <artifactId>oauth-helper</artifactId>
+            <artifactId>cluster</artifactId>
             <version>${version.light-4j}</version>
         </dependency>
         <dependency>
