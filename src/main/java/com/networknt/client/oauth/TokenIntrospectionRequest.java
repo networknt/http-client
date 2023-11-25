@@ -1,6 +1,7 @@
 package com.networknt.client.oauth;
 
 import com.networknt.client.ClientConfig;
+import com.networknt.config.Config;
 import com.networknt.status.Status;
 import com.networknt.utility.StringUtils;
 import org.slf4j.Logger;
@@ -34,7 +35,7 @@ public class TokenIntrospectionRequest extends IntrospectionRequest {
                 if(tokenConfig != null) {
                     // first inherit the proxy config from the token config.
                     setProxyHost((String)tokenConfig.get(ClientConfig.PROXY_HOST));
-                    int port = tokenConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : (Integer)tokenConfig.get(ClientConfig.PROXY_PORT);
+                    int port = tokenConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : Config.loadIntegerValue(ClientConfig.PROXY_PORT, tokenConfig.get(ClientConfig.PROXY_PORT));
                     setProxyPort(port);
                     // set the default values from the key section of token for single auth server.
                     Map<String, Object> keyConfig = (Map<String, Object>)tokenConfig.get(ClientConfig.KEY);
@@ -70,7 +71,7 @@ public class TokenIntrospectionRequest extends IntrospectionRequest {
         if(introspectionConfig.get(ClientConfig.ENABLE_HTTP2) != null) {
             if(logger.isTraceEnabled()) logger.trace("overwrite old enableHttp2 {} with new enableHttp2 {}", isEnableHttp2(), introspectionConfig.get(ClientConfig.ENABLE_HTTP2));
             Object object = introspectionConfig.get(ClientConfig.ENABLE_HTTP2);
-            setEnableHttp2(object != null && (Boolean) object);
+            setEnableHttp2(Config.loadBooleanValue(ClientConfig.ENABLE_HTTP2, object));
         }
         if(introspectionConfig.get(ClientConfig.URI) != null) {
             if(logger.isTraceEnabled()) logger.trace("overwrite old uri {} with new uri {}", getUri(), introspectionConfig.get(ClientConfig.URI));
@@ -94,7 +95,7 @@ public class TokenIntrospectionRequest extends IntrospectionRequest {
             if(proxyHost.length() > 1) {
                 // overwrite the tokenConfig proxyHost and proxyPort if this particular service has different proxy server
                 setProxyHost(proxyHost);
-                int port = introspectionConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : (Integer)introspectionConfig.get(ClientConfig.PROXY_PORT);
+                int port = introspectionConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : Config.loadIntegerValue(ClientConfig.PROXY_PORT, introspectionConfig.get(ClientConfig.PROXY_PORT));
                 setProxyPort(port);
             } else {
                 // if this service doesn't need a proxy server, just use an empty string to remove the tokenConfig proxy host.

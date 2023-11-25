@@ -3,6 +3,7 @@ package com.networknt.client.oauth;
 import com.networknt.client.ClientConfig;
 import com.networknt.client.oauth.cache.ICacheStrategy;
 import com.networknt.client.oauth.cache.LongestExpireCacheStrategy;
+import com.networknt.config.Config;
 import com.networknt.monad.Failure;
 import com.networknt.monad.Result;
 import com.networknt.status.Status;
@@ -17,7 +18,7 @@ import java.util.*;
  * It manages caches based on different cache strategies underneath.
  */
 public class TokenManager {
-    private Logger logger = LoggerFactory.getLogger(TokenManager.class);
+    private static final Logger logger = LoggerFactory.getLogger(TokenManager.class);
     private static final String CONFIG_PROPERTY_MISSING = "ERR10057";
 
     private static volatile TokenManager INSTANCE;
@@ -32,7 +33,7 @@ public class TokenManager {
             Map<String, Object> cacheConfig = (Map<String, Object>)tokenConfig.get(ClientConfig.CACHE);
             if(cacheConfig != null) {
                 if(cacheConfig.get(ClientConfig.CAPACITY) != null) {
-                    CAPACITY = (Integer)cacheConfig.get(ClientConfig.CAPACITY);
+                    CAPACITY = Config.loadIntegerValue(ClientConfig.CAPACITY, cacheConfig.get(ClientConfig.CAPACITY));
                 }
             }
         }

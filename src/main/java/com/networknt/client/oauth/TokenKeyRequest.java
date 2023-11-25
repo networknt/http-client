@@ -17,6 +17,7 @@
 package com.networknt.client.oauth;
 
 import com.networknt.client.ClientConfig;
+import com.networknt.config.Config;
 import com.networknt.status.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,7 +52,7 @@ public class TokenKeyRequest extends KeyRequest {
                 if(tokenConfig != null) {
                     // first inherit the proxy config from the token config.
                     setProxyHost((String)tokenConfig.get(ClientConfig.PROXY_HOST));
-                    int port = tokenConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : (Integer)tokenConfig.get(ClientConfig.PROXY_PORT);
+                    int port = tokenConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : Config.loadIntegerValue(ClientConfig.PROXY_PORT, tokenConfig.get(ClientConfig.PROXY_PORT));
                     setProxyPort(port);
                     if(keyConfig == null) keyConfig = (Map<String, Object>)tokenConfig.get(ClientConfig.KEY);
                     if(keyConfig != null) {
@@ -74,7 +75,7 @@ public class TokenKeyRequest extends KeyRequest {
         setServerUrl((String)keyConfig.get(ClientConfig.SERVER_URL));
         setServiceId((String)keyConfig.get(ClientConfig.SERVICE_ID));
         Object object = keyConfig.get(ClientConfig.ENABLE_HTTP2);
-        setEnableHttp2(object != null && (Boolean) object);
+        if(object != null) setEnableHttp2(Config.loadBooleanValue(ClientConfig.ENABLE_HTTP2, object));
         if(jwk) {
             // there is no additional kid in the path parameter for jwk
             setUri(keyConfig.get(ClientConfig.URI).toString());
@@ -99,7 +100,7 @@ public class TokenKeyRequest extends KeyRequest {
             if(proxyHost.length() > 1) {
                 // overwrite the tokenConfig proxyHost and proxyPort if this particular service has different proxy server
                 setProxyHost(proxyHost);
-                int port = keyConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : (Integer)keyConfig.get(ClientConfig.PROXY_PORT);
+                int port = keyConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : Config.loadIntegerValue(ClientConfig.PROXY_PORT, keyConfig.get(ClientConfig.PROXY_PORT));
                 setProxyPort(port);
             } else {
                 // if this service doesn't need a proxy server, just use an empty string to remove the tokenConfig proxy host.

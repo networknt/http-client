@@ -17,6 +17,7 @@
 package com.networknt.client.oauth;
 
 import com.networknt.client.ClientConfig;
+import com.networknt.config.Config;
 import com.networknt.status.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,11 +42,11 @@ public class DerefRequest {
         if(derefConfig != null) {
             setServerUrl((String)derefConfig.get(ClientConfig.SERVER_URL));
             setProxyHost((String)derefConfig.get(ClientConfig.PROXY_HOST));
-            int port = derefConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : (Integer)derefConfig.get(ClientConfig.PROXY_PORT);
+            int port = derefConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : Config.loadIntegerValue(ClientConfig.PROXY_PORT, derefConfig.get(ClientConfig.PROXY_PORT));
             setProxyPort(port);
             setServiceId((String)derefConfig.get(ClientConfig.SERVICE_ID));
             Object object = derefConfig.get(ClientConfig.ENABLE_HTTP2);
-            setEnableHttp2(object != null && (Boolean) object);
+            if(object != null) setEnableHttp2(Config.loadBooleanValue(ClientConfig.ENABLE_HTTP2, object));
             setUri(derefConfig.get(ClientConfig.URI) + "/" + token);
             setClientId((String)derefConfig.get(ClientConfig.CLIENT_ID));
             if(derefConfig.get(ClientConfig.CLIENT_SECRET) != null) {

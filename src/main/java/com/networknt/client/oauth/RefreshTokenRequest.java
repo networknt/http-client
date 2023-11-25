@@ -17,6 +17,7 @@
 package com.networknt.client.oauth;
 
 import com.networknt.client.ClientConfig;
+import com.networknt.config.Config;
 import com.networknt.status.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,11 +37,11 @@ public class RefreshTokenRequest extends TokenRequest {
         if(tokenConfig != null) {
             setServerUrl((String)tokenConfig.get(ClientConfig.SERVER_URL));
             setProxyHost((String)tokenConfig.get(ClientConfig.PROXY_HOST));
-            int port = tokenConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : (Integer)tokenConfig.get(ClientConfig.PROXY_PORT);
+            int port = tokenConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : Config.loadIntegerValue(ClientConfig.PROXY_PORT, tokenConfig.get(ClientConfig.PROXY_PORT));
             setProxyPort(port);
             setServiceId((String)tokenConfig.get(ClientConfig.SERVICE_ID));
             Object object = tokenConfig.get(ClientConfig.ENABLE_HTTP2);
-            setEnableHttp2(object != null && (Boolean) object);
+            if(object != null) setEnableHttp2(Config.loadBooleanValue(ClientConfig.ENABLE_HTTP2, object));
             Map<String, Object> rtConfig = (Map<String, Object>) tokenConfig.get(ClientConfig.REFRESH_TOKEN);
             if(rtConfig != null) {
                 setClientId((String)rtConfig.get(ClientConfig.CLIENT_ID));
@@ -50,7 +51,7 @@ public class RefreshTokenRequest extends TokenRequest {
                     logger.error(new Status(CONFIG_PROPERTY_MISSING, "refresh_token client_secret", "client.yml").toString());
                 }
                 setUri((String)rtConfig.get(ClientConfig.URI));
-                setScope((List<String>)rtConfig.get(ClientConfig.SCOPE));
+                setScope(loadScope(rtConfig));
             }
         }
     }

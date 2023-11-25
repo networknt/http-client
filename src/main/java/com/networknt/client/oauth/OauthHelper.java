@@ -116,7 +116,7 @@ public class OauthHelper {
 
                 // this a workaround to bypass the hostname verification in jdk11 http client.
                 Map<String, Object> tlsMap = ClientConfig.get().getTlsConfig();
-                if(tlsMap != null && !Boolean.TRUE.equals(tlsMap.get(TLSConfig.VERIFY_HOSTNAME))) {
+                if(tlsMap == null || tlsMap.get(TLSConfig.VERIFY_HOSTNAME) == null || !Boolean.TRUE.equals(Config.loadBooleanValue(TLSConfig.VERIFY_HOSTNAME, tlsMap.get(TLSConfig.VERIFY_HOSTNAME)))) {
                     final Properties props = System.getProperties();
                     props.setProperty("jdk.internal.httpclient.disableHostnameVerification", Boolean.TRUE.toString());
                 }
@@ -187,7 +187,7 @@ public class OauthHelper {
 
                 // this a workaround to bypass the hostname verification in jdk11 http client.
                 Map<String, Object> tlsMap = ClientConfig.get().getTlsConfig();
-                if(tlsMap != null && !Boolean.TRUE.equals(tlsMap.get(TLSConfig.VERIFY_HOSTNAME))) {
+                if(tlsMap == null || tlsMap.get(TLSConfig.VERIFY_HOSTNAME) == null || !Boolean.TRUE.equals(Config.loadBooleanValue(TLSConfig.VERIFY_HOSTNAME, tlsMap.get(TLSConfig.VERIFY_HOSTNAME)))) {
                     final Properties props = System.getProperties();
                     props.setProperty("jdk.internal.httpclient.disableHostnameVerification", Boolean.TRUE.toString());
                 }
@@ -265,7 +265,7 @@ public class OauthHelper {
 
                 // this a workaround to bypass the hostname verification in jdk11 http client.
                 Map<String, Object> tlsMap = ClientConfig.get().getTlsConfig();
-                if(tlsMap != null && !Boolean.TRUE.equals(tlsMap.get(TLSConfig.VERIFY_HOSTNAME))) {
+                if(tlsMap == null || tlsMap.get(TLSConfig.VERIFY_HOSTNAME) == null || !Boolean.TRUE.equals(Config.loadBooleanValue(TLSConfig.VERIFY_HOSTNAME, tlsMap.get(TLSConfig.VERIFY_HOSTNAME)))) {
                     final Properties props = System.getProperties();
                     props.setProperty("jdk.internal.httpclient.disableHostnameVerification", Boolean.TRUE.toString());
                 }
@@ -352,7 +352,7 @@ public class OauthHelper {
 
             // this a workaround to bypass the hostname verification in jdk11 http client.
             Map<String, Object> tlsMap = ClientConfig.get().getTlsConfig();
-            if(tlsMap != null && !Boolean.TRUE.equals(tlsMap.get(TLSConfig.VERIFY_HOSTNAME))) {
+            if(tlsMap == null || tlsMap.get(TLSConfig.VERIFY_HOSTNAME) == null || !Boolean.TRUE.equals(Config.loadBooleanValue(TLSConfig.VERIFY_HOSTNAME, tlsMap.get(TLSConfig.VERIFY_HOSTNAME)))) {
                 final Properties props = System.getProperties();
                 props.setProperty("jdk.internal.httpclient.disableHostnameVerification", Boolean.TRUE.toString());
             }
@@ -399,7 +399,7 @@ public class OauthHelper {
                 }
                 // this a workaround to bypass the hostname verification in jdk11 http client.
                 Map<String, Object> tlsMap = ClientConfig.get().getTlsConfig();
-                if(tlsMap != null && !Boolean.TRUE.equals(tlsMap.get(TLSConfig.VERIFY_HOSTNAME))) {
+                if(tlsMap == null || tlsMap.get(TLSConfig.VERIFY_HOSTNAME) == null || !Boolean.TRUE.equals(Config.loadBooleanValue(TLSConfig.VERIFY_HOSTNAME, tlsMap.get(TLSConfig.VERIFY_HOSTNAME)))) {
                     final Properties props = System.getProperties();
                     props.setProperty("jdk.internal.httpclient.disableHostnameVerification", Boolean.TRUE.toString());
                 }
@@ -483,7 +483,7 @@ public class OauthHelper {
                 }
                 // this a workaround to bypass the hostname verification in jdk11 http client.
                 Map<String, Object> tlsMap = ClientConfig.get().getTlsConfig();
-                if(tlsMap != null && !Boolean.TRUE.equals(tlsMap.get(TLSConfig.VERIFY_HOSTNAME))) {
+                if(tlsMap == null || tlsMap.get(TLSConfig.VERIFY_HOSTNAME) == null || !Boolean.TRUE.equals(Config.loadBooleanValue(TLSConfig.VERIFY_HOSTNAME, tlsMap.get(TLSConfig.VERIFY_HOSTNAME)))) {
                     final Properties props = System.getProperties();
                     props.setProperty("jdk.internal.httpclient.disableHostnameVerification", Boolean.TRUE.toString());
                 }

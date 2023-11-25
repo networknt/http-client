@@ -16,11 +16,16 @@
 
 package com.networknt.client.oauth;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.networknt.client.ClientConfig;
+import com.networknt.config.Config;
+import com.networknt.config.ConfigException;
 import com.networknt.status.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -42,11 +47,11 @@ public class AuthorizationCodeRequest extends TokenRequest {
         if(tokenConfig != null) {
             setServerUrl((String)tokenConfig.get(ClientConfig.SERVER_URL));
             setProxyHost((String)tokenConfig.get(ClientConfig.PROXY_HOST));
-            int port = tokenConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : (Integer)tokenConfig.get(ClientConfig.PROXY_PORT);
+            int port = tokenConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : Config.loadIntegerValue(ClientConfig.PROXY_PORT, tokenConfig.get(ClientConfig.PROXY_PORT));
             setProxyPort(port);
             setServiceId((String)tokenConfig.get(ClientConfig.SERVICE_ID));
             Object object = tokenConfig.get(ClientConfig.ENABLE_HTTP2);
-            setEnableHttp2(object != null && (Boolean) object);
+            if(object != null) setEnableHttp2(Config.loadBooleanValue(ClientConfig.ENABLE_HTTP2, object));
             Map<String, Object> acConfig = (Map<String, Object>) tokenConfig.get(ClientConfig.AUTHORIZATION_CODE);
             if(acConfig != null) {
                 setClientId((String)acConfig.get(ClientConfig.CLIENT_ID));
@@ -56,7 +61,7 @@ public class AuthorizationCodeRequest extends TokenRequest {
                     logger.error(new Status(CONFIG_PROPERTY_MISSING, "authorization_code client_secret", "client.yml").toString());
                 }
                 setUri((String)acConfig.get(ClientConfig.URI));
-                setScope((List<String>)acConfig.get(ClientConfig.SCOPE));
+                setScope(loadScope(acConfig));
                 setRedirectUri((String)acConfig.get(ClientConfig.REDIRECT_URI));
             }
         }
@@ -77,4 +82,5 @@ public class AuthorizationCodeRequest extends TokenRequest {
     public void setRedirectUri(String redirectUri) {
         this.redirectUri = redirectUri;
     }
+
 }

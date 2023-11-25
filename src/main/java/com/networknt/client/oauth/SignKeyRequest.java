@@ -17,6 +17,7 @@
 package com.networknt.client.oauth;
 
 import com.networknt.client.ClientConfig;
+import com.networknt.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,11 +48,11 @@ public class SignKeyRequest extends KeyRequest {
             if(keyConfig != null) {
                 setServerUrl((String)keyConfig.get(ClientConfig.SERVER_URL));
                 setProxyHost((String)signConfig.get(ClientConfig.PROXY_HOST));
-                int port = signConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : (Integer)signConfig.get(ClientConfig.PROXY_PORT);
+                int port = signConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : Config.loadIntegerValue(ClientConfig.PROXY_PORT, signConfig.get(ClientConfig.PROXY_PORT));
                 setProxyPort(port);
                 setServiceId((String)keyConfig.get(ClientConfig.SERVICE_ID));
                 Object object = keyConfig.get(ClientConfig.ENABLE_HTTP2);
-                setEnableHttp2(object != null && (Boolean) object);
+                if(object != null) setEnableHttp2(Config.loadBooleanValue(ClientConfig.ENABLE_HTTP2, object));
                 setUri(keyConfig.get(ClientConfig.URI) + "/" + kid);
                 setClientId((String)keyConfig.get(ClientConfig.CLIENT_ID));
                 setClientSecret((String)keyConfig.get(ClientConfig.CLIENT_SECRET));

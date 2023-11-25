@@ -17,6 +17,7 @@
 package com.networknt.client.oauth;
 
 import com.networknt.client.ClientConfig;
+import com.networknt.config.Config;
 import com.networknt.status.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,11 +44,11 @@ public class ClientCredentialsRequest extends TokenRequest {
         if(tokenConfig != null) {
             setServerUrl((String)tokenConfig.get(ClientConfig.SERVER_URL));
             setProxyHost((String)tokenConfig.get(ClientConfig.PROXY_HOST));
-            int port = tokenConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : (Integer)tokenConfig.get(ClientConfig.PROXY_PORT);
+            int port = tokenConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : Config.loadIntegerValue(ClientConfig.PROXY_PORT, tokenConfig.get(ClientConfig.PROXY_PORT));
             setProxyPort(port);
             setServiceId((String)tokenConfig.get(ClientConfig.SERVICE_ID));
             Object object = tokenConfig.get(ClientConfig.ENABLE_HTTP2);
-            setEnableHttp2(object != null && (Boolean) object);
+            if(object != null) setEnableHttp2(Config.loadBooleanValue(ClientConfig.ENABLE_HTTP2, object));
             if(ccConfig == null) ccConfig = (Map<String, Object>) tokenConfig.get(ClientConfig.CLIENT_CREDENTIALS);
             if(ccConfig != null) {
                 setClientId((String)ccConfig.get(ClientConfig.CLIENT_ID));
@@ -58,7 +59,7 @@ public class ClientCredentialsRequest extends TokenRequest {
                 }
                 setUri((String)ccConfig.get(ClientConfig.URI));
                 //set default scope from config.
-                setScope((List<String>)ccConfig.get(ClientConfig.SCOPE));
+                setScope(loadScope(ccConfig));
                 // overwrite server url, id, proxy host, id and http2 flag if they are defined in the ccConfig.
                 // This is only used by the multiple auth servers. There is no reason to overwrite in single auth server.
                 if(ccConfig.get(ClientConfig.SERVER_URL) != null) {
@@ -72,7 +73,7 @@ public class ClientCredentialsRequest extends TokenRequest {
                     String proxyHost = (String)ccConfig.get(ClientConfig.PROXY_HOST);
                     if(proxyHost.length() > 1) {
                         setProxyHost((String)ccConfig.get(ClientConfig.PROXY_HOST));
-                        port = ccConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : (Integer)ccConfig.get(ClientConfig.PROXY_PORT);
+                        port = ccConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : Config.loadIntegerValue(ClientConfig.PROXY_PORT, ccConfig.get(ClientConfig.PROXY_PORT));
                         setProxyPort(port);
                     } else {
                         // overwrite the inherited proxyHost from the tokenConfig.
@@ -81,7 +82,8 @@ public class ClientCredentialsRequest extends TokenRequest {
                     }
                 }
                 if(ccConfig.get(ClientConfig.ENABLE_HTTP2) != null) {
-                    setEnableHttp2((Boolean)ccConfig.get(ClientConfig.ENABLE_HTTP2));
+                    object = ccConfig.get(ClientConfig.ENABLE_HTTP2);
+                    if(object != null) setEnableHttp2(Config.loadBooleanValue(ClientConfig.ENABLE_HTTP2, object));
                 }
             }
         }

@@ -17,6 +17,7 @@
 package com.networknt.client.oauth;
 
 import com.networknt.client.ClientConfig;
+import com.networknt.config.Config;
 import com.networknt.utility.StringUtils;
 
 import java.util.*;
@@ -53,9 +54,12 @@ public class Jwt {
     public Jwt() {
         Map<String, Object> tokenConfig = ClientConfig.get().getTokenConfig();
         if(tokenConfig != null) {
-            tokenRenewBeforeExpired = (Integer) tokenConfig.get(ClientConfig.TOKEN_RENEW_BEFORE_EXPIRED);
-            expiredRefreshRetryDelay = (Integer)tokenConfig.get(ClientConfig.EXPIRED_REFRESH_RETRY_DELAY);
-            earlyRefreshRetryDelay = (Integer)tokenConfig.get(ClientConfig.EARLY_REFRESH_RETRY_DELAY);
+            Object object = tokenConfig.get(ClientConfig.TOKEN_RENEW_BEFORE_EXPIRED);
+            if(object != null) tokenRenewBeforeExpired = Config.loadLongValue(ClientConfig.TOKEN_RENEW_BEFORE_EXPIRED, object);
+            object = tokenConfig.get(ClientConfig.EXPIRED_REFRESH_RETRY_DELAY);
+            if(object != null) expiredRefreshRetryDelay = Config.loadLongValue(ClientConfig.EXPIRED_REFRESH_RETRY_DELAY, object);
+            object = tokenConfig.get(ClientConfig.EARLY_REFRESH_RETRY_DELAY);
+            if(object != null) earlyRefreshRetryDelay = Config.loadLongValue(ClientConfig.EARLY_REFRESH_RETRY_DELAY, object);
         }
     }
 
