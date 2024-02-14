@@ -3,6 +3,7 @@ package com.networknt.http.client;
 import com.networknt.client.ClientConfig;
 import com.networknt.client.oauth.Jwt;
 import com.networknt.client.oauth.TokenManager;
+import com.networknt.config.Config;
 import com.networknt.config.TlsUtil;
 import com.networknt.http.client.ssl.ClientX509ExtendedTrustManager;
 import com.networknt.http.client.ssl.CompositeX509TrustManager;
@@ -273,7 +274,7 @@ public class HttpClientRequest {
         if(tlsMap != null) {
             try {
                 // load key store for client certificate if two way ssl is used.
-                Boolean loadKeyStore = (Boolean) tlsMap.get(LOAD_KEY_STORE);
+                Boolean loadKeyStore = tlsMap.get(LOAD_KEY_STORE) == null ? false : Config.loadBooleanValue(LOAD_KEY_STORE, tlsMap.get(LOAD_KEY_STORE));
                 if (loadKeyStore != null && loadKeyStore) {
                     String keyStoreName = System.getProperty(KEY_STORE_PROPERTY);
                     String keyStorePass = System.getProperty(KEY_STORE_PASSWORD_PROPERTY);
@@ -303,13 +304,13 @@ public class HttpClientRequest {
             }
 
             TrustManager[] trustManagers = null;
-            Boolean loadDefaultTrust = (Boolean) tlsMap.get(LOAD_DEFAULT_TRUST);
+            Boolean loadDefaultTrust = tlsMap.get(LOAD_DEFAULT_TRUST) == null ? false : Config.loadBooleanValue(LOAD_DEFAULT_TRUST, tlsMap.get(LOAD_DEFAULT_TRUST));
             List<TrustManager> trustManagerList = new ArrayList<>();
             try {
                 // load trust store, this is the server public key certificate
                 // first check if javax.net.ssl.trustStore system properties is set. It is only necessary if the server
                 // certificate doesn't have the entire chain.
-                Boolean loadTrustStore = (Boolean) tlsMap.get(LOAD_TRUST_STORE);
+                Boolean loadTrustStore = tlsMap.get(LOAD_TRUST_STORE) == null ? false : Config.loadBooleanValue(LOAD_TRUST_STORE, tlsMap.get(LOAD_TRUST_STORE));
                 if (loadTrustStore != null && loadTrustStore) {
 
                     String trustStoreName = (String) tlsMap.get(TRUST_STORE);;
