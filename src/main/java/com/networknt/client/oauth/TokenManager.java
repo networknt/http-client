@@ -113,7 +113,7 @@ public class TokenManager {
             if(logger.isTraceEnabled()) logger.trace("serviceId = " + serviceId);
             // based on the serviceId, we can find the configuration of the auth server from the client credentials
             Map<String, Object> clientCredentials = (Map<String, Object>)ClientConfig.get().getTokenConfig().get(ClientConfig.CLIENT_CREDENTIALS);
-            Map<String, Object> serviceIdAuthServers = (Map<String, Object>)clientCredentials.get(ClientConfig.SERVICE_ID_AUTH_SERVERS);
+            Map<String, Object> serviceIdAuthServers = ClientConfig.getServiceIdAuthServers(clientCredentials.get(ClientConfig.SERVICE_ID_AUTH_SERVERS));
             if(serviceIdAuthServers == null) {
                 Status status = new Status(CONFIG_PROPERTY_MISSING, "serviceIdAuthServers", "client.yml");
                 return Failure.of(status);
