@@ -26,7 +26,7 @@ import java.util.Map;
 /**
  * The configuration is coming from the sign/key section in the client.yml file. This request is used
  * to get the key for sign verification. The proxy configuration is defined in the sign section as it
- * is not possible the same service using two different proxy servers.  
+ * is not possible the same service using two different proxy servers.
  *
  * @author Steve Hu
  */

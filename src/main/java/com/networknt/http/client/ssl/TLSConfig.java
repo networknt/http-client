@@ -18,7 +18,7 @@ package com.networknt.http.client.ssl;
 
 /**
  * This class holds configuration values related to server identify check.
- * 
+ *
  * @author Daniel Zhao
  *
  */
@@ -34,5 +34,5 @@ public class TLSConfig {
     public boolean getCheckServerIdentity() {
     	return checkServerIdentify;
     }
-    
+
 }

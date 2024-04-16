@@ -5,7 +5,7 @@ An HTTP client based on JDK 11 http-client to invoke APIs with client-side cross
 
 The purpose of the client module is trying to help the user to handler SSL cert load and JWT token process.
 
-###  Synchronous call 
+###  Synchronous call
 
 ```text
         HttpClientRequest httpClientRequest = new HttpClientRequest();
@@ -56,7 +56,7 @@ The purpose of the client module is trying to help the user to handler SSL cert 
 
 ### Connectionpool
 
-JDK 11 http connection build connection pool internal and it will select the connection from pool base on certain logic. 
+JDK 11 http connection build connection pool internal and it will select the connection from pool base on certain logic.
 
 
 ### Connection with proxy.
@@ -115,7 +115,7 @@ Java HttpClient by default will load default JDK cacerts for https request, if t
 ```
   # trust store contains certifictes that server needs. Enable if tls is used.
   loadTrustStore: false
-``` 
+```
 
 If we need load self-signed trust from client truststore, set the config value to true:
 
