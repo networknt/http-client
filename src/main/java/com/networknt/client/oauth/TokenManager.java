@@ -125,9 +125,7 @@ public class TokenManager {
         } else {
             // single auth server, keep the existing logic.
             if(scopes != null) {
-                Set<String> scopeSet = new HashSet<>();
-                scopeSet.addAll(Arrays.asList(scopes.split(" ")));
-                return getJwt(new Jwt.Key(scopeSet), null);
+                return getJwt(new Jwt.Key(scopes), null);
             }
             if(serviceId != null) {
                 return getJwt(new Jwt.Key(serviceId), null);
