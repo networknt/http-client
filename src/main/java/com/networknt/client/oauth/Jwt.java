@@ -28,7 +28,7 @@ import java.util.*;
  */
 public class Jwt {
 
-    protected Set<String> scopes = new HashSet<>();
+    protected String scopes;
     protected Key key;
     /**
      * This is the client credentials token config if multiple auth servers are used.
@@ -140,19 +140,19 @@ public class Jwt {
         this.ccConfig = ccConfig;
     }
 
-    public Set<String> getScopes() {
+    public Set<String> getScopesSet() {
+        Set<String> scopesSet = new HashSet<>();
+        if(StringUtils.isBlank(scopes)) return scopesSet;
+        scopesSet.addAll(Arrays.asList(scopes.split("(\\s)+")));
+        return scopesSet;
+    }
+
+    public String getScopes() {
         return scopes;
     }
 
-    public void setScopes(Set<String> scopes) {
+    public void setScopes(String scopes) {
         this.scopes = scopes;
-    }
-
-    public void setScopes(String scopesStr) {
-        this.scopes = this.scopes == null ? new HashSet() : this.scopes;
-        if(StringUtils.isNotBlank(scopesStr)) {
-            scopes.addAll(Arrays.asList(scopesStr.split("(\\s)+")));
-        }
     }
 
     public Key getKey() {
@@ -167,7 +167,7 @@ public class Jwt {
         /**
          * scopes should be extendable by its children
          */
-        protected Set<String> scopes;
+        protected String scopes;
         /**
          * serviceId should be extendable by its children
          */
@@ -183,7 +183,8 @@ public class Jwt {
             return hashCode() == obj.hashCode();
         }
 
-        public Key(Set<String> scopes) {
+        public Key(String serviceId, String scopes) {
+            this.serviceId = serviceId;
             this.scopes = scopes;
         }
 
@@ -192,11 +193,26 @@ public class Jwt {
         }
 
         public Key() {
-            this.scopes = new HashSet<>();
+
         }
 
-        public Set<String> getScopes() {
+        public String getScopes() {
             return scopes;
+        }
+
+        public Set<String> getScopesSet() {
+            Set<String> scopesSet = new HashSet<>();
+            if(StringUtils.isBlank(scopes)) return scopesSet;
+            scopesSet.addAll(Arrays.asList(scopes.split("(\\s)+")));
+            return scopesSet;
+        }
+
+        public void setScopes(String scopes) {
+            this.scopes = scopes;
+        }
+
+        public void setServiceId(String serviceId) {
+            this.serviceId = serviceId;
         }
 
         public String getServiceId() {
