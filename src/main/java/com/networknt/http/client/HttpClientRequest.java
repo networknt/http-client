@@ -35,8 +35,8 @@ import java.util.concurrent.ExecutorService;
 
 public class HttpClientRequest {
 
-    private  static Logger logger = LoggerFactory.getLogger(HttpClientRequest.class);
-    private static ClientConfig clientConfig = ClientConfig.get();
+    private static final Logger logger = LoggerFactory.getLogger(HttpClientRequest.class);
+    private static final ClientConfig clientConfig = ClientConfig.get();
     HttpClient httpClient;
 
     public static final String TLS = "tls";
@@ -55,7 +55,7 @@ public class HttpClientRequest {
     static final String TRUST_STORE_PROPERTY = "javax.net.ssl.trustStore";
     static final String TRUST_STORE_PASSWORD_PROPERTY = "javax.net.ssl.trustStorePassword";
     static final String TRUST_STORE_TYPE_PROPERTY = "javax.net.ssl.trustStoreType";
-    private TokenManager tokenManager = TokenManager.getInstance();
+    private final TokenManager tokenManager = TokenManager.getInstance();
     private String proxyHost = null;
     private int proxyPort;
     private Authenticator authenticator = null;
