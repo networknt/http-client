@@ -9,6 +9,7 @@ import com.networknt.http.client.ssl.ClientX509ExtendedTrustManager;
 import com.networknt.http.client.ssl.CompositeX509TrustManager;
 import com.networknt.monad.Failure;
 import com.networknt.monad.Result;
+import com.networknt.utility.ModuleRegistry;
 import org.apache.commons.lang3.StringUtils;
 import org.owasp.encoder.Encode;
 import org.slf4j.Logger;
@@ -360,6 +361,14 @@ public class HttpClientRequest {
         } else {
             logger.error("TLS configuration section is missing in client.yml");
         }
+        // register the client config to the module registry.
+        List<String> masks = List.of("client_secret", "trustStorePass", "keyStorePass", "keyPass");
+        ModuleRegistry.registerModule(
+                ClientConfig.CONFIG_NAME,
+                HttpClientRequest.class.getName(),
+                Config.getNoneDecryptedInstance().getJsonMapConfigNoCache(ClientConfig.CONFIG_NAME),
+                masks
+        );
 
         return sslContext;
     }
