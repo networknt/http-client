@@ -38,6 +38,7 @@ public class HttpClientRequest {
 
     private static final Logger logger = LoggerFactory.getLogger(HttpClientRequest.class);
     private static final ClientConfig clientConfig = ClientConfig.get();
+    private static SSLContext sslContext = null;
     HttpClient httpClient;
 
     public static final String TLS = "tls";
@@ -269,7 +270,8 @@ public class HttpClientRequest {
      */
     @SuppressWarnings("unchecked")
     public static SSLContext createSSLContext() throws IOException {
-        SSLContext sslContext = null;
+        // return the cached sslContext if it is not null.
+        if(sslContext != null) return sslContext;
         KeyManager[] keyManagers = null;
         Map<String, Object> tlsMap = clientConfig.getTlsConfig();
         if(tlsMap != null) {
