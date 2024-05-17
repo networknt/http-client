@@ -579,31 +579,22 @@ public class OauthHelper {
     private static Result<TokenResponse> handleResponse(ContentType contentType, String responseBody) {
         TokenResponse tokenResponse;
         Result<TokenResponse> result;
-        if(logger.isTraceEnabled()) logger.trace("contentType = " + contentType + " responseBody = " +  responseBody);
-        try {
-            //only accept json format response so that can map to a TokenResponse, otherwise escapes server's response and return to the client.
-            if(!contentType.equals(ContentType.APPLICATION_JSON)) {
-                return Failure.of(new Status(GET_TOKEN_ERROR, escapeBasedOnType(contentType, responseBody)));
-            }
-            if (responseBody != null && responseBody.length() > 0) {
-                tokenResponse = Config.getInstance().getMapper().readValue(responseBody, TokenResponse.class);
-                // sometimes, the token response contains an error status instead of the access token.
-                if(tokenResponse != null && tokenResponse.getAccessToken() != null) {
-                    result = Success.of(tokenResponse);
-                } else {
-                    result = Failure.of(new Status(tokenResponse.getStatusCode(), tokenResponse.getCode(), tokenResponse.getMessage(), tokenResponse.getDescription(), tokenResponse.getSeverity()));
-                }
+        if(logger.isTraceEnabled()) logger.trace("contentType = {} responseBody = {}", contentType, responseBody);
+        //only accept json format response so that can map to a TokenResponse, otherwise escapes server's response and return to the client.
+        if(!contentType.equals(ContentType.APPLICATION_JSON)) {
+            return Failure.of(new Status(GET_TOKEN_ERROR, escapeBasedOnType(contentType, responseBody)));
+        }
+        if (responseBody != null && !responseBody.isEmpty()) {
+            tokenResponse = JsonMapper.fromJson(responseBody, TokenResponse.class);
+            // sometimes, the token response contains an error status instead of the access token.
+            if(tokenResponse != null && tokenResponse.getAccessToken() != null) {
+                result = Success.of(tokenResponse);
             } else {
-                result = Failure.of(new Status(GET_TOKEN_ERROR, "no auth server response"));
-                logger.error("Error in token retrieval, response = " + responseBody);
+                result = Failure.of(new Status(tokenResponse.getStatusCode(), tokenResponse.getCode(), tokenResponse.getMessage(), tokenResponse.getDescription(), tokenResponse.getSeverity()));
             }
-        } catch (UnrecognizedPropertyException e) {
-            //in this case, cannot parse success token, which means the server doesn't response a successful token but some messages, we need to pass this message out.
-            result = Failure.of(new Status(GET_TOKEN_ERROR, escapeBasedOnType(contentType, responseBody)));
-            logger.error("Error in token parsing", e);
-        } catch (IOException | RuntimeException e) {
-            result = Failure.of(new Status(GET_TOKEN_ERROR, e.getMessage()));
-            logger.error("Error in token retrieval", e);
+        } else {
+            result = Failure.of(new Status(GET_TOKEN_ERROR, "no auth server response"));
+            logger.error("Error in token retrieval, response = {}", responseBody);
         }
         return result;
     }
