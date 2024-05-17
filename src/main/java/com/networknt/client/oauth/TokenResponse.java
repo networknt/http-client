@@ -16,6 +16,7 @@
 
 package com.networknt.client.oauth;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.networknt.status.Status;
 
@@ -26,6 +27,7 @@ import com.networknt.status.Status;
  * @author Steve Hu
  *
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class TokenResponse extends Status {
     @JsonProperty(value="access_token")
     private String accessToken;
