@@ -5,7 +5,8 @@ public enum HttpMethod {
     GET("GET"),
     POST("POST"),
     PUT("PUT"),
-    DELETE("DELETE");
+    DELETE("DELETE"),
+    PATCH("PATCH");
 
     public final String methodString;
 

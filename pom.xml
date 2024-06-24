@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.networknt</groupId>
     <artifactId>http-client</artifactId>
-    <version>1.0.11</version>
+    <version>1.0.12</version>
     <packaging>jar</packaging>
     <description>generic http client module</description>
     <url>https://github.com/networknt/http-client</url>
@@ -45,7 +45,7 @@
     <properties>
         <java.version>11</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <version.light-4j>2.1.33</version.light-4j>
+        <version.light-4j>2.1.34</version.light-4j>
         <version.snakeyaml>2.2</version.snakeyaml>
         <version.slf4j>2.0.7</version.slf4j>
         <version.common-lang3>3.5</version.common-lang3>

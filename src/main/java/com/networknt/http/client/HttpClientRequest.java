@@ -321,7 +321,8 @@ public class HttpClientRequest {
                     if(trustStorePass == null) {
                         logger.error("Cannot load the config: "  + TRUST_STORE_PASS + " from client.yml");
                     }
-                    if(logger.isInfoEnabled()) logger.info("Loading trust store from config at " + Encode.forJava(trustStoreName));
+                    if(logger.isInfoEnabled())
+                        logger.info("Loading trust store from config at {}", Encode.forJava(trustStoreName));
                     if (trustStoreName != null && trustStorePass != null) {
                         KeyStore trustStore = TlsUtil.loadKeyStore(trustStoreName, trustStorePass.toCharArray());
                         TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
@@ -344,7 +345,7 @@ public class HttpClientRequest {
 
             try {
                 String tlsVersion = (String)tlsMap.get(TLS_VERSION);
-                if(tlsVersion == null) tlsVersion = "TLSv1.2";
+                if(tlsVersion == null) tlsVersion = "TLSv1.3";
                 sslContext = SSLContext.getInstance(tlsVersion);
                 if (loadDefaultTrust != null && loadDefaultTrust && !trustManagerList.isEmpty()) {
                     TrustManager[] compositeTrustManagers = {new CompositeX509TrustManager(convertTrustManagers(trustManagerList))};
@@ -364,6 +365,7 @@ public class HttpClientRequest {
             logger.error("TLS configuration section is missing in client.yml");
         }
         // register the client config to the module registry.
+        if(logger.isTraceEnabled()) logger.trace("Registering client config to module registry");
         List<String> masks = List.of("client_secret", "trustStorePass", "keyStorePass", "keyPass");
         ModuleRegistry.registerModule(
                 ClientConfig.CONFIG_NAME,
