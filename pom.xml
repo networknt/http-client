@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.networknt</groupId>
     <artifactId>http-client</artifactId>
-    <version>1.0.12</version>
+    <version>1.0.13</version>
     <packaging>jar</packaging>
     <description>generic http client module</description>
     <url>https://github.com/networknt/http-client</url>
@@ -63,26 +63,31 @@
         <dependency>
             <groupId>com.networknt</groupId>
             <artifactId>status</artifactId>
+            <scope>provided</scope>
             <version>${version.light-4j}</version>
         </dependency>
         <dependency>
             <groupId>com.networknt</groupId>
             <artifactId>monad-result</artifactId>
+            <scope>provided</scope>
             <version>${version.light-4j}</version>
         </dependency>
         <dependency>
             <groupId>com.networknt</groupId>
             <artifactId>config</artifactId>
+            <scope>provided</scope>
             <version>${version.light-4j}</version>
         </dependency>
         <dependency>
             <groupId>com.networknt</groupId>
             <artifactId>client-config</artifactId>
+            <scope>provided</scope>
             <version>${version.light-4j}</version>
         </dependency>
         <dependency>
             <groupId>com.networknt</groupId>
             <artifactId>cluster</artifactId>
+            <scope>provided</scope>
             <version>${version.light-4j}</version>
         </dependency>
         <dependency>
@@ -138,12 +143,6 @@
             <artifactId>mockito-core</artifactId>
             <version>${version.mockito}</version>
             <scope>test</scope>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/org.aspectj/aspectjrt -->
-        <dependency>
-            <groupId>org.aspectj</groupId>
-            <artifactId>aspectjrt</artifactId>
-            <version>${version.aspectj}</version>
         </dependency>
 
     </dependencies>
