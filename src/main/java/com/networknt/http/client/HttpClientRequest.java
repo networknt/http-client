@@ -119,13 +119,11 @@ public class HttpClientRequest {
     }
 
     public HttpResponse<?> send(HttpRequest.Builder builder, HttpResponse.BodyHandler<?> handler) throws InterruptedException, IOException {
-        HttpResponse<?> response = httpClient.send(builder.build(), handler);
-        return response;
+        return httpClient.send(builder.build(), handler);
     }
 
     public CompletableFuture<? extends HttpResponse<?>> sendAsync(HttpRequest.Builder builder, HttpResponse.BodyHandler<?> handler) throws InterruptedException, IOException {
-        CompletableFuture<? extends HttpResponse<?>> response = httpClient.sendAsync(builder.build(), handler);
-        return response;
+        return httpClient.sendAsync(builder.build(), handler);
     }
 
     public HttpRequest.Builder initBuilder(String url,  HttpMethod method) throws Exception{
@@ -144,15 +142,18 @@ public class HttpClientRequest {
 
         httpClient = buildHttpClient(clientConfig, "https".equals(uri.getScheme()));
         HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .timeout(Duration.ofMillis(clientConfig.getTimeout()))
                 .uri(uri);
         if (HttpMethod.DELETE.equals(method)) {
             builder.DELETE();
-        } else  if (HttpMethod.POST.equals(method)) {
+        } else if (HttpMethod.POST.equals(method)) {
             builder.POST(getBodyPublisher(body));
-        } else  if (HttpMethod.PUT.name().equals(method)) {
+        } else if (HttpMethod.PUT.equals(method)) {
             builder.PUT(getBodyPublisher(body));
+        } else if (HttpMethod.PATCH.equals(method)) {
+            builder.method("PATCH", getBodyPublisher(body));
         }
-        //GET is default method
+        // GET is the default method.
         return builder;
     }
 
