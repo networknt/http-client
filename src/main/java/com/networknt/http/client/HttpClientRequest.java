@@ -32,6 +32,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 
 public class HttpClientRequest {
@@ -119,13 +120,56 @@ public class HttpClientRequest {
     }
 
     public HttpResponse<?> send(HttpRequest.Builder builder, HttpResponse.BodyHandler<?> handler) throws InterruptedException, IOException {
-        return httpClient.send(builder.build(), handler);
+        return sendWithRetry(builder, handler, clientConfig.getMaxRequestRetry());
     }
 
     public CompletableFuture<? extends HttpResponse<?>> sendAsync(HttpRequest.Builder builder, HttpResponse.BodyHandler<?> handler) throws InterruptedException, IOException {
-        return httpClient.sendAsync(builder.build(), handler);
+        return sendAsyncWithRetry(builder, handler, clientConfig.getMaxRequestRetry());
     }
 
+    private HttpResponse<?> sendWithRetry(HttpRequest.Builder builder, HttpResponse.BodyHandler<?> handler, int retries) throws InterruptedException, IOException {
+        for (int attempt = 1; attempt <= retries; attempt++) {
+            try {
+                return httpClient.send(builder.build(), handler);
+            } catch (IOException | InterruptedException e) {
+                if (attempt == retries) {
+                    throw e;
+                }
+                if(clientConfig.getRequestRetryDelay() > 0) {
+                    TimeUnit.MILLISECONDS.sleep(clientConfig.getRequestRetryDelay());
+                }
+            }
+        }
+        throw new IOException("Failed to send request after " + retries + " attempts");
+    }
+
+    private CompletableFuture<? extends HttpResponse<?>> sendAsyncWithRetry(HttpRequest.Builder builder, HttpResponse.BodyHandler<?> handler, int retries) throws InterruptedException, IOException {
+        CompletableFuture<HttpResponse<?>> future = new CompletableFuture<>();
+        sendAsyncWithRetry(builder, handler, retries, future, 1);
+        return future;
+    }
+
+    private void sendAsyncWithRetry(HttpRequest.Builder builder, HttpResponse.BodyHandler<?> handler, int retries, CompletableFuture<HttpResponse<?>> future, int attempt) {
+        httpClient.sendAsync(builder.build(), handler).whenComplete((response, throwable) -> {
+            if (throwable == null) {
+                future.complete(response);
+            } else {
+                if (attempt < retries) {
+                    try {
+                        if(clientConfig.getRequestRetryDelay() > 0) {
+                            TimeUnit.MILLISECONDS.sleep(clientConfig.getRequestRetryDelay());
+                        }
+                    } catch (InterruptedException e) {
+                        future.completeExceptionally(e);
+                        return;
+                    }
+                    sendAsyncWithRetry(builder, handler, retries, future, attempt + 1);
+                } else {
+                    future.completeExceptionally(throwable);
+                }
+            }
+        });
+    }
     public HttpRequest.Builder initBuilder(String url,  HttpMethod method) throws Exception{
         return initBuilder(new URI(url), method, Optional.empty());
     }
