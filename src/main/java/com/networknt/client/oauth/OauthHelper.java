@@ -715,7 +715,7 @@ public class OauthHelper {
                 return Failure.of(new Status(GET_TOKEN_ERROR, "Error parsing JWT token body and retrieving exp claim"));
             }
 
-            logger.info("Get client credentials token {} with expire_in {} seconds", jwt.getJwt().substring(0, 20), jwt.getExpire());
+            logger.info("Get client credentials token {} with exp claim {} milliseconds", jwt.getJwt().substring(0, 20), jwt.getExpire());
             //set the scope for future usage.
             jwt.setScopes(tokenResponse.getScope());
             return Success.of(jwt);
