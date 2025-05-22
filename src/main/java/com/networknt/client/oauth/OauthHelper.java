@@ -709,7 +709,7 @@ public class OauthHelper {
             // extracting the jwt.exp claim as it is the most reliable source to calculate expire time.
             // Auth Server response payload body is not as reliable since it can be cached and not updated.
             try {
-                jwt.setExpire(getJwtExp(jwt));
+                jwt.setExpire(getJwtExp(jwt.getJwt()));
             } catch (JsonProcessingException e) {
                 logger.error("Error parsing JWT token body and retrieving exp claim", e);
                 return Failure.of(new Status(GET_TOKEN_ERROR, "Error parsing JWT token body and retrieving exp claim"));
@@ -725,8 +725,8 @@ public class OauthHelper {
         }
     }
 
-    private static long getJwtExp(Jwt jwt) throws JsonProcessingException {
-        String[] chunks = jwt.getJwt().split("\\.");
+    public static long getJwtExp(String jwt) throws JsonProcessingException {
+        String[] chunks = jwt.split("\\.");
         if (chunks.length != 3) {
             logger.error("Invalid JWT token received");
             throw new IllegalArgumentException("Invalid JWT token");
