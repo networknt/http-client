@@ -33,9 +33,6 @@ import java.util.Map;
 public class SignKeyRequest extends KeyRequest {
     private static Logger logger = LoggerFactory.getLogger(SignKeyRequest.class);
 
-    /**
-     * @deprecated will be moved to {@link ClientConfig#SIGN}
-     */
     @Deprecated
     public static String SIGN = "sign";
 
