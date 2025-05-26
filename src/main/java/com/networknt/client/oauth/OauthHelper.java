@@ -52,7 +52,14 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.Date;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.commons.codec.binary.Base64.*;
 
 public class OauthHelper {
     private static final String BASIC = "Basic";
@@ -61,6 +68,7 @@ public class OauthHelper {
     private static final String USER_ID = "userId";
     private static final String USER_TYPE = "userType";
     private static final String ROLES = "roles";
+    private static final String EXP_CLAIM = "exp";
     private static final String APPLICATION_FORM_URLENCODED_VALUE = "application/x-www-form-urlencoded";
 
     private static final String FAIL_TO_SEND_REQUEST = "ERR10051";
@@ -530,7 +538,7 @@ public class OauthHelper {
             cred = clientId;
         }
         String encodedValue;
-        byte[] encodedBytes = Base64.encodeBase64(cred.getBytes(UTF_8));
+        byte[] encodedBytes = encodeBase64(cred.getBytes(UTF_8));
         encodedValue = new String(encodedBytes, UTF_8);
         return encodedValue;
     }
@@ -694,9 +702,20 @@ public class OauthHelper {
         if(result.isSuccess()) {
             TokenResponse tokenResponse = result.getResult();
             jwt.setJwt(tokenResponse.getAccessToken());
+
             // the expiresIn is seconds and it is converted to millisecond in the future.
-            jwt.setExpire(System.currentTimeMillis() + tokenResponse.getExpiresIn() * 1000);
-            logger.info("Get client credentials token {} with expire_in {} seconds", jwt.getJwt().substring(0, 20), tokenResponse.getExpiresIn());
+            //jwt.setExpire(System.currentTimeMillis() + tokenResponse.getExpiresIn() * 1000);
+
+            // extracting the jwt.exp claim as it is the most reliable source to calculate expire time.
+            // Auth Server response payload body is not as reliable since it can be cached and not updated.
+            try {
+                jwt.setExpire(getJwtExp(jwt.getJwt()));
+            } catch (JsonProcessingException e) {
+                logger.error("Error parsing JWT token body and retrieving exp claim", e);
+                return Failure.of(new Status(GET_TOKEN_ERROR, "Error parsing JWT token body and retrieving exp claim"));
+            }
+
+            logger.info("Get client credentials token {} with exp claim {} milliseconds", jwt.getJwt().substring(0, 20), jwt.getExpire());
             //set the scope for future usage.
             jwt.setScopes(tokenResponse.getScope());
             return Success.of(jwt);
@@ -704,6 +723,25 @@ public class OauthHelper {
             logger.info("Get client credentials token fail with status: {}", result.getError().toString());
             return Failure.of(result.getError());
         }
+    }
+
+    public static long getJwtExp(String jwt) throws JsonProcessingException {
+        String[] chunks = jwt.split("\\.");
+        if (chunks.length != 3) {
+            logger.error("Invalid JWT token received");
+            throw new IllegalArgumentException("Invalid JWT token");
+        }
+        //String header = new String(Base64.decodeBase64(chunks[0])); // need to decode header?
+        String jwtBody = new String(Base64.decodeBase64(chunks[1]));
+
+        ObjectMapper mapper = new ObjectMapper();
+        long jwtExp = 0L;
+
+        JsonNode jwtNode = mapper.readTree(jwtBody);
+        jwtExp = jwtNode.get(EXP_CLAIM).asLong() * 1000; // jwt exp in milliseconds
+        if (logger.isTraceEnabled()) logger.trace("JWT exp: " + jwtExp);
+
+        return jwtExp;
     }
 
     /**
