@@ -16,7 +16,6 @@
 package com.networknt.client.oauth;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.networknt.client.ClientConfig;
 import com.networknt.cluster.Cluster;
 import com.networknt.common.ContentType;
@@ -52,12 +51,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.Date;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.commons.codec.binary.Base64.*;
 
@@ -293,6 +287,72 @@ public class OauthHelper {
                 return Failure.of(new Status(OAUTH_SERVER_URL_ERROR, "token"));
             }
             IClientRequestComposable requestComposer = ClientRequestComposerProvider.getInstance().getComposer(ClientRequestComposerProvider.ClientRequestComposers.SAML_BEARER_REQUEST_COMPOSER);
+            final HttpRequest request = requestComposer.composeClientRequest(tokenRequest);
+            CompletableFuture<HttpResponse<String>> response = tokenClient.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+            String body = response.thenApply(HttpResponse::body).get();
+            HttpHeaders headers = response.thenApply(HttpResponse::headers).get();
+            return handleResponse(getContentTypeHeaders(headers), body);
+        } catch (Exception e) {
+            logger.error("IOException: ", e);
+            return Failure.of(new Status(ESTABLISH_CONNECTION_ERROR, tokenRequest.getServerUrl()));
+        }
+    }
+
+    /**
+     * Get an access token from the token service based on a token exchange request. A Result of TokenResponse will be returned
+     * if the invocation is successfully. Otherwise, a Result of Status will be returned.
+     *
+     * @param tokenRequest token request constructed from the client.yml token section.
+     * @return Result of TokenResponse or error Status.
+     */
+    public static Result<TokenResponse> getTokenFromTokenExchangeResult(TokenExchangeRequest tokenRequest) {
+        return getTokenFromTokenExchangeResult(tokenRequest, null);
+    }
+
+    /**
+     * Get an access token from the token service based on a token exchange request. A Result of TokenResponse will be returned
+     * if the invocation is successfully. Otherwise, a Result of Status will be returned.
+     *
+     * @param tokenRequest token request constructed from the client.yml token section.
+     * @param envTag environment tag for service lookup.
+     * @return Result of TokenResponse or error Status.
+     */
+    public static Result<TokenResponse> getTokenFromTokenExchangeResult(TokenExchangeRequest tokenRequest, String envTag) {
+        if(tokenClient == null) {
+            try {
+                HttpClient.Builder clientBuilder = HttpClient.newBuilder()
+                        .followRedirects(HttpClient.Redirect.NORMAL)
+                        .connectTimeout(Duration.ofMillis(ClientConfig.get().getTimeout()))
+                        .sslContext(HttpClientRequest.createSSLContext());
+                if(tokenRequest.getProxyHost() != null) clientBuilder.proxy(ProxySelector.of(new InetSocketAddress(tokenRequest.getProxyHost(), tokenRequest.getProxyPort() == 0 ? 443 : tokenRequest.getProxyPort())));
+                if (tokenRequest.isEnableHttp2()) {
+                    clientBuilder.version(HttpClient.Version.HTTP_2);
+                } else {
+                    clientBuilder.version(HttpClient.Version.HTTP_1_1);
+                }
+
+                // this a workaround to bypass the hostname verification in jdk11 http client.
+                Map<String, Object> tlsMap = ClientConfig.get().getTlsConfig();
+                if(tlsMap == null || tlsMap.get(TLSConfig.VERIFY_HOSTNAME) == null || !Boolean.TRUE.equals(Config.loadBooleanValue(TLSConfig.VERIFY_HOSTNAME, tlsMap.get(TLSConfig.VERIFY_HOSTNAME)))) {
+                    final Properties props = System.getProperties();
+                    props.setProperty("jdk.internal.httpclient.disableHostnameVerification", Boolean.TRUE.toString());
+                }
+                tokenClient = clientBuilder.build();
+            } catch (IOException e) {
+                logger.error("Cannot create HttpClient:", e);
+                return Failure.of(new Status(TLS_TRUSTSTORE_ERROR));
+            }
+        }
+        try {
+            String serverUrl = tokenRequest.getServerUrl();
+            if(serverUrl == null) {
+                Cluster cluster = SingletonServiceFactory.getBean(Cluster.class);
+                tokenRequest.setServerUrl(cluster.serviceToUrl("https", tokenRequest.getServiceId(), envTag, null));
+            }
+            if(tokenRequest.getServerUrl() == null) {
+                return Failure.of(new Status(OAUTH_SERVER_URL_ERROR, "token"));
+            }
+            IClientRequestComposable requestComposer = ClientRequestComposerProvider.getInstance().getComposer(ClientRequestComposerProvider.ClientRequestComposers.TOKEN_EXCHANGE_REQUEST_COMPOSER);
             final HttpRequest request = requestComposer.composeClientRequest(tokenRequest);
             CompletableFuture<HttpResponse<String>> response = tokenClient.sendAsync(request, HttpResponse.BodyHandlers.ofString());
             String body = response.thenApply(HttpResponse::body).get();

@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.networknt</groupId>
     <artifactId>http-client</artifactId>
-    <version>1.0.14</version>
+    <version>1.0.15</version>
     <packaging>jar</packaging>
     <description>generic http client module</description>
     <url>https://github.com/networknt/http-client</url>
@@ -75,10 +75,10 @@
     <properties>
         <java.version>11</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <version.light-4j>2.2.2-SNAPSHOT</version.light-4j>
+        <version.light-4j>2.3.1-SNAPSHOT</version.light-4j>
         <version.snakeyaml>2.4</version.snakeyaml>
         <version.slf4j>2.0.7</version.slf4j>
-        <version.common-lang3>3.5</version.common-lang3>
+        <version.common-lang3>3.18.0</version.common-lang3>
         <version.encoder>1.2.1</version.encoder>
         <version.jackson>2.18.3</version.jackson>
         <version.logback>1.4.14</version.logback>
@@ -295,7 +295,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-report-plugin</artifactId>
-                <version>2.20.1</version>
+                <version>2.22.2</version>
             </plugin>
         </plugins>
     </reporting>

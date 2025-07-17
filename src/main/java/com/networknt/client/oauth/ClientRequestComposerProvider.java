@@ -21,9 +21,9 @@ import static com.networknt.client.oauth.ClientRequestComposerProvider.ClientReq
  * To see composer please check {@link com.networknt.client.oauth.IClientRequestComposable}
  */
 public class ClientRequestComposerProvider {
-    public enum ClientRequestComposers { CLIENT_CREDENTIAL_REQUEST_COMPOSER, SAML_BEARER_REQUEST_COMPOSER, CLIENT_AUTHENTICATED_USER_REQUEST_COMPOSER }
+    public enum ClientRequestComposers { CLIENT_CREDENTIAL_REQUEST_COMPOSER, SAML_BEARER_REQUEST_COMPOSER, CLIENT_AUTHENTICATED_USER_REQUEST_COMPOSER, TOKEN_EXCHANGE_REQUEST_COMPOSER }
     private static final ClientRequestComposerProvider INSTANCE = new ClientRequestComposerProvider();
-    private Map<ClientRequestComposers, IClientRequestComposable> composersMap = new HashMap<>();
+    private final Map<ClientRequestComposers, IClientRequestComposable> composersMap = new HashMap<>();
     private static final Logger logger = LoggerFactory.getLogger(ClientRequestComposerProvider.class);
     private ClientRequestComposerProvider() {
     }
@@ -55,6 +55,9 @@ public class ClientRequestComposerProvider {
                 break;
             case CLIENT_AUTHENTICATED_USER_REQUEST_COMPOSER:
                 composersMap.put(CLIENT_AUTHENTICATED_USER_REQUEST_COMPOSER, new DefaultClientAuthenticatedUserRequestComposer());
+                break;
+            case TOKEN_EXCHANGE_REQUEST_COMPOSER:
+                composersMap.put(TOKEN_EXCHANGE_REQUEST_COMPOSER, new DefaultTokenExchangeRequestComposer());
                 break;
             default:
                 break;
@@ -165,6 +168,43 @@ public class ClientRequestComposerProvider {
         public String composeRequestBody(TokenRequest tokenRequest) {
             try {
                 return OauthHelper.getEncodedString(tokenRequest);
+            } catch (UnsupportedEncodingException e) {
+                logger.error("get encoded string from tokenRequest fails: \n {}", e.toString());
+            }
+            return "";
+        }
+    }
+
+    /**
+     * The default composer to compose a ClientRequest with the given TokenExchangeRequest.
+     */
+    private static class DefaultTokenExchangeRequestComposer implements IClientRequestComposable {
+
+        @Override
+        public HttpRequest composeClientRequest(TokenRequest tokenRequest) {
+            final HttpRequest request = HttpRequest.newBuilder()
+                    .POST(HttpRequest.BodyPublishers.ofString(composeRequestBody(tokenRequest)))
+                    .uri(URI.create(tokenRequest.getServerUrl() + tokenRequest.getUri()))
+                    .setHeader(Headers.CONTENT_TYPE_STRING, "application/x-www-form-urlencoded")
+                    .setHeader(Headers.AUTHORIZATION_STRING, OauthHelper.getBasicAuthHeader(tokenRequest.getClientId(), tokenRequest.getClientSecret()))
+                    .build();
+            return request;
+        }
+
+        public String composeRequestBody(TokenRequest tokenRequest) {
+            TokenExchangeRequest exchangeRequest = (TokenExchangeRequest)tokenRequest;
+            Map<String, String> postBody = new HashMap<>();
+            postBody.put("grant_type", exchangeRequest.getGrantType());
+            postBody.put("subject_token", exchangeRequest.getSubjectToken());
+            postBody.put("subject_token_type", exchangeRequest.getSubjectTokenType());
+
+            if (exchangeRequest.getRequestedTokenType() != null) postBody.put("requested_token_type", exchangeRequest.getRequestedTokenType());
+            if (exchangeRequest.getAudience() != null) postBody.put("audience", exchangeRequest.getAudience());
+            // The scope in TokenRequest is a list. It needs to be converted to a space-separated string.
+            if (exchangeRequest.getScope() != null && !exchangeRequest.getScope().isEmpty()) postBody.put("scope", String.join(" ", exchangeRequest.getScope()));
+
+            try {
+                return getFormDataString(postBody);
             } catch (UnsupportedEncodingException e) {
                 logger.error("get encoded string from tokenRequest fails: \n {}", e.toString());
             }
