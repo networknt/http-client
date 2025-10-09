@@ -1,3 +1,14 @@
+## [1.0.15](https://github.com/networknt/http-client/tree/1.0.14) (2025-10-09)
+
+**Fixed bugs:**
+
+- Passing only the encoded jwt instead of the entire Jwt pojo to make it easier for reused by other classes leveraging oAuthHelper
+- typo on info log
+- removing the system time since "exp" is final expire date in Epoch millis
+- adjust JWT renewal logic to use "exp" claim instead of response body "expire_in"
+- fixes #45 DefaultTokenExchangeRequestComposer misses the csrf token
+- upgrade maven gpg version
+
 ## [1.0.15](https://github.com/networknt/http-client/tree/1.0.14) (2025-07-17)
 
 **Fixed bugs:**
