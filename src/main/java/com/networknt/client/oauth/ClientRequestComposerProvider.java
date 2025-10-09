@@ -198,6 +198,7 @@ public class ClientRequestComposerProvider {
             postBody.put("subject_token", exchangeRequest.getSubjectToken());
             postBody.put("subject_token_type", exchangeRequest.getSubjectTokenType());
 
+            if(exchangeRequest.getCsrf() != null) postBody.put("csrf", exchangeRequest.getCsrf());
             if (exchangeRequest.getRequestedTokenType() != null) postBody.put("requested_token_type", exchangeRequest.getRequestedTokenType());
             if (exchangeRequest.getAudience() != null) postBody.put("audience", exchangeRequest.getAudience());
             // The scope in TokenRequest is a list. It needs to be converted to a space-separated string.
