@@ -1,4 +1,4 @@
-## [1.0.15](https://github.com/networknt/http-client/tree/1.0.14) (2025-10-09)
+## [1.0.16](https://github.com/networknt/http-client/tree/1.0.14) (2025-10-09)
 
 **Fixed bugs:**
 
