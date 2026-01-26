@@ -16,7 +16,9 @@
 
 package com.networknt.client.oauth;
 
+import com.networknt.client.AuthServerConfig;
 import com.networknt.client.ClientConfig;
+import com.networknt.client.OAuthTokenConfig;
 import com.networknt.config.Config;
 import com.networknt.utility.StringUtils;
 
@@ -33,7 +35,7 @@ public class Jwt {
     /**
      * This is the client credentials token config if multiple auth servers are used.
      */
-    protected Map<String, Object> ccConfig;
+    protected AuthServerConfig authServerConfig;
 
     /**
      * the cached jwt token for client credentials grant type
@@ -52,14 +54,11 @@ public class Jwt {
     private static long earlyRefreshRetryDelay;
 
     public Jwt() {
-        Map<String, Object> tokenConfig = ClientConfig.get().getTokenConfig();
+        OAuthTokenConfig tokenConfig = ClientConfig.get().getOAuth().getToken();
         if(tokenConfig != null) {
-            Object object = tokenConfig.get(ClientConfig.TOKEN_RENEW_BEFORE_EXPIRED);
-            if(object != null) tokenRenewBeforeExpired = Config.loadLongValue(ClientConfig.TOKEN_RENEW_BEFORE_EXPIRED, object);
-            object = tokenConfig.get(ClientConfig.EXPIRED_REFRESH_RETRY_DELAY);
-            if(object != null) expiredRefreshRetryDelay = Config.loadLongValue(ClientConfig.EXPIRED_REFRESH_RETRY_DELAY, object);
-            object = tokenConfig.get(ClientConfig.EARLY_REFRESH_RETRY_DELAY);
-            if(object != null) earlyRefreshRetryDelay = Config.loadLongValue(ClientConfig.EARLY_REFRESH_RETRY_DELAY, object);
+            tokenRenewBeforeExpired = tokenConfig.getTokenRenewBeforeExpired();
+            expiredRefreshRetryDelay = tokenConfig.getExpiredRefreshRetryDelay();
+            earlyRefreshRetryDelay = tokenConfig.getEarlyRefreshRetryDelay();
         }
     }
 
@@ -132,12 +131,12 @@ public class Jwt {
         Jwt.earlyRefreshRetryDelay = earlyRefreshRetryDelay;
     }
 
-    public Map<String, Object> getCcConfig() {
-        return ccConfig;
+    public AuthServerConfig getAuthServerConfig() {
+        return authServerConfig;
     }
 
-    public void setCcConfig(Map<String, Object> ccConfig) {
-        this.ccConfig = ccConfig;
+    public void setAuthServerConfig(AuthServerConfig authServerConfig) {
+        this.authServerConfig = authServerConfig;
     }
 
     public Set<String> getScopesSet() {

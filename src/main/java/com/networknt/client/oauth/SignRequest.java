@@ -17,8 +17,10 @@
 package com.networknt.client.oauth;
 
 import com.networknt.client.ClientConfig;
+import com.networknt.client.OAuthSignConfig;
 import com.networknt.config.Config;
 
+import java.util.Arrays;
 import java.util.Map;
 
 /**
@@ -44,20 +46,18 @@ public class SignRequest {
     private Map<String, Object> payload;
 
     public SignRequest() {
-        Map<String, Object> signConfig = ClientConfig.get().getSignConfig();
+        OAuthSignConfig signConfig = ClientConfig.get().getOAuth().getSign();
         if(signConfig != null) {
-            setServerUrl((String)signConfig.get(ClientConfig.SERVER_URL));
-            setProxyHost((String)signConfig.get(ClientConfig.PROXY_HOST));
-            int port = signConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : Config.loadIntegerValue(ClientConfig.PROXY_PORT, signConfig.get(ClientConfig.PROXY_PORT));
+            setServerUrl(signConfig.getServerUrl());
+            setProxyHost(signConfig.getProxyHost());
+            int port = signConfig.getProxyPort() == null ? 443 : signConfig.getProxyPort();
             setProxyPort(port);
-            setServiceId((String)signConfig.get(ClientConfig.SERVICE_ID));
-            setUri((String)signConfig.get(ClientConfig.URI));
-            Object object = signConfig.get(ClientConfig.TIMEOUT);
-            if(object != null) setTimeout(Config.loadIntegerValue(ClientConfig.TIMEOUT, object));
-            object = signConfig.get(ClientConfig.ENABLE_HTTP2);
-            if(object != null) setEnableHttp2(Config.loadBooleanValue(ClientConfig.ENABLE_HTTP2, object));
-            setClientId((String)signConfig.get(ClientConfig.CLIENT_ID));
-            setClientSecret((String)signConfig.get(ClientConfig.CLIENT_SECRET));
+            setServiceId(signConfig.getServiceId());
+            setUri(signConfig.getUri());
+            setEnableHttp2(signConfig.isEnableHttp2());
+            setTimeout(signConfig.getTimeout());
+            setClientId(String.valueOf(signConfig.getClientId()));
+            setClientSecret(String.valueOf(signConfig.getClientSecret()));
         }
     }
 

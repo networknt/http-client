@@ -18,6 +18,8 @@ package com.networknt.client.oauth;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.networknt.client.ClientConfig;
+import com.networknt.client.OAuthTokenAuthorizationCodeConfig;
+import com.networknt.client.OAuthTokenConfig;
 import com.networknt.config.Config;
 import com.networknt.config.ConfigException;
 import com.networknt.status.Status;
@@ -43,26 +45,25 @@ public class AuthorizationCodeRequest extends TokenRequest {
      */
     public AuthorizationCodeRequest() {
         setGrantType(ClientConfig.AUTHORIZATION_CODE);
-        Map<String, Object> tokenConfig = ClientConfig.get().getTokenConfig();
+        OAuthTokenConfig tokenConfig = ClientConfig.get().getOAuth().getToken();
         if(tokenConfig != null) {
-            setServerUrl((String)tokenConfig.get(ClientConfig.SERVER_URL));
-            setProxyHost((String)tokenConfig.get(ClientConfig.PROXY_HOST));
-            int port = tokenConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : Config.loadIntegerValue(ClientConfig.PROXY_PORT, tokenConfig.get(ClientConfig.PROXY_PORT));
+            setServerUrl(tokenConfig.getServerUrl());
+            setProxyHost(tokenConfig.getProxyHost());
+            int port = tokenConfig.getProxyPort() == null ? 443 : tokenConfig.getProxyPort();
             setProxyPort(port);
-            setServiceId((String)tokenConfig.get(ClientConfig.SERVICE_ID));
-            Object object = tokenConfig.get(ClientConfig.ENABLE_HTTP2);
-            if(object != null) setEnableHttp2(Config.loadBooleanValue(ClientConfig.ENABLE_HTTP2, object));
-            Map<String, Object> acConfig = (Map<String, Object>) tokenConfig.get(ClientConfig.AUTHORIZATION_CODE);
+            setServiceId(tokenConfig.getServiceId());
+            setEnableHttp2(tokenConfig.isEnableHttp2());
+            OAuthTokenAuthorizationCodeConfig acConfig = tokenConfig.getAuthorizationCode();
             if(acConfig != null) {
-                setClientId((String)acConfig.get(ClientConfig.CLIENT_ID));
-                if(acConfig.get(ClientConfig.CLIENT_SECRET) != null) {
-                    setClientSecret((String)acConfig.get(ClientConfig.CLIENT_SECRET));
+                setClientId(String.valueOf(acConfig.getClientId()));
+                if(acConfig.getClientSecret() != null) {
+                    setClientSecret(String.valueOf(acConfig.getClientSecret()));
                 } else {
                     logger.error(new Status(CONFIG_PROPERTY_MISSING, "authorization_code client_secret", "client.yml").toString());
                 }
-                setUri((String)acConfig.get(ClientConfig.URI));
-                setScope(loadScope(acConfig));
-                setRedirectUri((String)acConfig.get(ClientConfig.REDIRECT_URI));
+                setUri(acConfig.getUri());
+                setScope(acConfig.getScope());
+                setRedirectUri(acConfig.getRedirectUri());
             }
         }
     }

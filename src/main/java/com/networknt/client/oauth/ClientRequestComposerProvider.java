@@ -1,5 +1,6 @@
 package com.networknt.client.oauth;
 
+import com.networknt.client.ClientConfig;
 import com.networknt.http.client.Headers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,6 +9,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpRequest;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -81,12 +83,12 @@ public class ClientRequestComposerProvider {
 
         @Override
         public HttpRequest composeClientRequest(TokenRequest tokenRequest) {
-            final HttpRequest request = HttpRequest.newBuilder()
+            return HttpRequest.newBuilder()
+                    .timeout(Duration.ofMillis(ClientConfig.get().getRequest().getTimeout()))
                     .POST(HttpRequest.BodyPublishers.ofString(composeRequestBody(tokenRequest)))
                     .uri(URI.create(tokenRequest.getServerUrl() + tokenRequest.getUri()))
                     .header(Headers.CONTENT_TYPE_STRING, "application/x-www-form-urlencoded")
                     .build();
-            return request;
         }
 
         public String composeRequestBody(TokenRequest tokenRequest) {
@@ -128,6 +130,7 @@ public class ClientRequestComposerProvider {
         @Override
         public HttpRequest composeClientRequest(TokenRequest tokenRequest) {
             final HttpRequest request = HttpRequest.newBuilder()
+                    .timeout(Duration.ofMillis(ClientConfig.get().getRequest().getTimeout()))
                     .POST(HttpRequest.BodyPublishers.ofString(composeRequestBody(tokenRequest)))
                     .uri(URI.create(tokenRequest.getServerUrl() + tokenRequest.getUri()))
                     .setHeader(Headers.CONTENT_TYPE_STRING, "application/x-www-form-urlencoded")
@@ -155,14 +158,14 @@ public class ClientRequestComposerProvider {
 
         @Override
         public HttpRequest composeClientRequest(TokenRequest tokenRequest) {
-            final HttpRequest request = HttpRequest.newBuilder()
+
+            return HttpRequest.newBuilder()
+                    .timeout(Duration.ofMillis(ClientConfig.get().getRequest().getTimeout()))
                     .POST(HttpRequest.BodyPublishers.ofString(composeRequestBody(tokenRequest)))
                     .uri(URI.create(tokenRequest.getServerUrl() + tokenRequest.getUri()))
                     .setHeader(Headers.CONTENT_TYPE_STRING, "application/x-www-form-urlencoded")
                     .setHeader(Headers.AUTHORIZATION_STRING, OauthHelper.getBasicAuthHeader(tokenRequest.getClientId(), tokenRequest.getClientSecret()))
                     .build();
-
-            return request;
         }
 
         public String composeRequestBody(TokenRequest tokenRequest) {
@@ -182,13 +185,13 @@ public class ClientRequestComposerProvider {
 
         @Override
         public HttpRequest composeClientRequest(TokenRequest tokenRequest) {
-            final HttpRequest request = HttpRequest.newBuilder()
+            return HttpRequest.newBuilder()
+                    .timeout(Duration.ofMillis(ClientConfig.get().getRequest().getTimeout()))
                     .POST(HttpRequest.BodyPublishers.ofString(composeRequestBody(tokenRequest)))
                     .uri(URI.create(tokenRequest.getServerUrl() + tokenRequest.getUri()))
                     .setHeader(Headers.CONTENT_TYPE_STRING, "application/x-www-form-urlencoded")
                     .setHeader(Headers.AUTHORIZATION_STRING, OauthHelper.getBasicAuthHeader(tokenRequest.getClientId(), tokenRequest.getClientSecret()))
                     .build();
-            return request;
         }
 
         public String composeRequestBody(TokenRequest tokenRequest) {

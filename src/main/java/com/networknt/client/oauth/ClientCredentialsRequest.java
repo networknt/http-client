@@ -16,12 +16,13 @@
 
 package com.networknt.client.oauth;
 
-import com.networknt.client.ClientConfig;
+import com.networknt.client.*;
 import com.networknt.config.Config;
 import com.networknt.status.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -38,42 +39,39 @@ public class ClientCredentialsRequest extends TokenRequest {
         this(null);
     }
 
-    public ClientCredentialsRequest(Map<String, Object> ccConfig) {
+    public ClientCredentialsRequest(AuthServerConfig authServerConfig) {
         setGrantType(ClientConfig.CLIENT_CREDENTIALS);
-        Map<String, Object> tokenConfig = ClientConfig.get().getTokenConfig();
+        OAuthTokenConfig tokenConfig = ClientConfig.get().getOAuth().getToken();
         if(tokenConfig != null) {
-            setServerUrl((String)tokenConfig.get(ClientConfig.SERVER_URL));
-            setProxyHost((String)tokenConfig.get(ClientConfig.PROXY_HOST));
-            int port = tokenConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : Config.loadIntegerValue(ClientConfig.PROXY_PORT, tokenConfig.get(ClientConfig.PROXY_PORT));
+            setServerUrl(tokenConfig.getServerUrl());
+            setProxyHost(tokenConfig.getProxyHost());
+            int port = tokenConfig.getProxyPort() == null ? 443 : tokenConfig.getProxyPort();
             setProxyPort(port);
-            setServiceId((String)tokenConfig.get(ClientConfig.SERVICE_ID));
-            Object object = tokenConfig.get(ClientConfig.ENABLE_HTTP2);
-            if(object != null) setEnableHttp2(Config.loadBooleanValue(ClientConfig.ENABLE_HTTP2, object));
-            if(ccConfig == null) ccConfig = (Map<String, Object>) tokenConfig.get(ClientConfig.CLIENT_CREDENTIALS);
-            if(ccConfig != null) {
-                setClientId((String)ccConfig.get(ClientConfig.CLIENT_ID));
-                if(ccConfig.get(ClientConfig.CLIENT_SECRET) != null) {
-                    setClientSecret((String)ccConfig.get(ClientConfig.CLIENT_SECRET));
+            setServiceId(tokenConfig.getServiceId());
+            setEnableHttp2(tokenConfig.isEnableHttp2());
+            if(authServerConfig != null) {
+                // populate details from the authServerConfig which is coming from the multiple oauth server config.
+
+                if(authServerConfig.getClientId() != null) setClientId(String.valueOf(authServerConfig.getClientId()));
+                if(authServerConfig.getClientSecret() != null) {
+                    setClientSecret(String.valueOf(authServerConfig.getClientSecret()));
                 } else {
                     logger.error(new Status(CONFIG_PROPERTY_MISSING, "client_credentials client_secret", "client.yml").toString());
                 }
-                setUri((String)ccConfig.get(ClientConfig.URI));
+                setUri(authServerConfig.getUri());
                 //set default scope from config.
-                setScope(loadScope(ccConfig));
+                setScope(authServerConfig.getScope());
                 // overwrite server url, id, proxy host, id and http2 flag if they are defined in the ccConfig.
                 // This is only used by the multiple auth servers. There is no reason to overwrite in single auth server.
-                if(ccConfig.get(ClientConfig.SERVER_URL) != null) {
-                    setServerUrl((String)ccConfig.get(ClientConfig.SERVER_URL));
+                if(authServerConfig.getServerUrl() != null) {
+                    setServerUrl(authServerConfig.getServerUrl());
                 }
-                if(ccConfig.get(ClientConfig.SERVICE_ID) != null) {
-                    setServiceId((String)ccConfig.get(ClientConfig.SERVICE_ID));
-                }
-                if(ccConfig.get(ClientConfig.PROXY_HOST) != null) {
+                if(authServerConfig.getProxyHost() != null) {
                     // give a chance to set proxyHost to null if a service doesn't need proxy.
-                    String proxyHost = (String)ccConfig.get(ClientConfig.PROXY_HOST);
+                    String proxyHost = authServerConfig.getProxyHost();
                     if(proxyHost.length() > 1) {
-                        setProxyHost((String)ccConfig.get(ClientConfig.PROXY_HOST));
-                        port = ccConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : Config.loadIntegerValue(ClientConfig.PROXY_PORT, ccConfig.get(ClientConfig.PROXY_PORT));
+                        setProxyHost(authServerConfig.getProxyHost());
+                        port = authServerConfig.getProxyPort() == null ? 443 : authServerConfig.getProxyPort();
                         setProxyPort(port);
                     } else {
                         // overwrite the inherited proxyHost from the tokenConfig.
@@ -81,9 +79,21 @@ public class ClientCredentialsRequest extends TokenRequest {
                         setProxyPort(0);
                     }
                 }
-                if(ccConfig.get(ClientConfig.ENABLE_HTTP2) != null) {
-                    object = ccConfig.get(ClientConfig.ENABLE_HTTP2);
-                    if(object != null) setEnableHttp2(Config.loadBooleanValue(ClientConfig.ENABLE_HTTP2, object));
+                setEnableHttp2(authServerConfig.isEnableHttp2());
+            } else {
+                // this is a single oauth server configuration, populate extra info from the client credentials section.
+                OAuthTokenClientCredentialConfig clientCredentialConfig = tokenConfig.getClientCredentials();
+                if(clientCredentialConfig != null) {
+
+                    if(clientCredentialConfig.getClientId() != null) setClientId(String.valueOf(clientCredentialConfig.getClientId()));
+                    if(clientCredentialConfig.getClientSecret() != null) {
+                        setClientSecret(String.valueOf(clientCredentialConfig.getClientSecret()));
+                    } else {
+                        logger.error(new Status(CONFIG_PROPERTY_MISSING, "client_credentials client_secret", "client.yml").toString());
+                    }
+                    setUri(clientCredentialConfig.getUri());
+                    //set default scope from config.
+                    setScope(clientCredentialConfig.getScope());
                 }
             }
         }

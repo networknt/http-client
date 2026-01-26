@@ -16,12 +16,13 @@
 
 package com.networknt.client.oauth;
 
-import com.networknt.client.ClientConfig;
+import com.networknt.client.*;
 import com.networknt.config.Config;
 import com.networknt.status.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.Map;
 
 /**
@@ -40,25 +41,33 @@ public class TokenKeyRequest extends KeyRequest {
     public TokenKeyRequest(String kid) {
         this(kid, false, null);
     }
-    public TokenKeyRequest(String kid, boolean jwk, Map<String, Object> keyConfig) {
+
+    // this method is for multiple oauth servers.
+    public TokenKeyRequest(String kid, boolean jwk, AuthServerConfig authServerConfig) {
         super(kid);
         this.jwk = jwk;
-        Map<String, Object> clientConfig = ClientConfig.get().getMappedConfig();
+        ClientConfig clientConfig = ClientConfig.get();
         if(clientConfig != null) {
-            Map<String, Object> oauthConfig = (Map<String, Object>)clientConfig.get(ClientConfig.OAUTH);
+            OAuthConfig oauthConfig = clientConfig.getOAuth();
             if(oauthConfig != null) {
                 // there is no key section under oauth. look up in the oauth/token section for key
-                Map<String, Object> tokenConfig = ClientConfig.get().getTokenConfig();
+                OAuthTokenConfig tokenConfig = oauthConfig.getToken();
                 if(tokenConfig != null) {
                     // first inherit the proxy config from the token config.
-                    setProxyHost((String)tokenConfig.get(ClientConfig.PROXY_HOST));
-                    int port = tokenConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : Config.loadIntegerValue(ClientConfig.PROXY_PORT, tokenConfig.get(ClientConfig.PROXY_PORT));
+                    setProxyHost(tokenConfig.getProxyHost());
+                    int port = tokenConfig.getProxyPort() == null ? 443 : tokenConfig.getProxyPort();
                     setProxyPort(port);
-                    if(keyConfig == null) keyConfig = (Map<String, Object>)tokenConfig.get(ClientConfig.KEY);
-                    if(keyConfig != null) {
-                        setKeyOptions(keyConfig);
+                    if(authServerConfig == null) {
+                        // this is the single oauth configuration, get the key config.
+                        OAuthTokenKeyConfig keyConfig = tokenConfig.getKey();
+                        if(keyConfig != null) {
+                            setAuthServerConfig(keyConfig);
+                        } else {
+                            logger.error(new Status(CONFIG_PROPERTY_MISSING, "token key section", "client.yml").toString());
+                        }
                     } else {
-                        logger.error(new Status(CONFIG_PROPERTY_MISSING, "token section", "client.yml").toString());
+                        // this is the multiple oauth configuration and the passed in authServerConfig is not empty.
+                        setAuthServerConfig(authServerConfig);
                     }
                 } else {
                     logger.error(new Status(CONFIG_PROPERTY_MISSING, "token section", "client.yml").toString());
@@ -71,42 +80,51 @@ public class TokenKeyRequest extends KeyRequest {
         }
     }
 
-    private void setKeyOptions(Map<String, Object> keyConfig) {
-        setServerUrl((String)keyConfig.get(ClientConfig.SERVER_URL));
-        setServiceId((String)keyConfig.get(ClientConfig.SERVICE_ID));
-        Object object = keyConfig.get(ClientConfig.ENABLE_HTTP2);
-        if(object != null) setEnableHttp2(Config.loadBooleanValue(ClientConfig.ENABLE_HTTP2, object));
+    private void setAuthServerConfig(AuthServerConfig authServerConfig) {
+        setServerUrl(authServerConfig.getServerUrl());
+        setEnableHttp2(authServerConfig.isEnableHttp2());
         if(jwk) {
             // there is no additional kid in the path parameter for jwk
-            setUri(keyConfig.get(ClientConfig.URI).toString());
+            setUri(authServerConfig.getUri());
         } else {
-            setUri(keyConfig.get(ClientConfig.URI) + "/" + kid);
+            setUri(authServerConfig.getUri() + "/" + kid);
         }
         // clientId is optional
-        if(keyConfig.get(ClientConfig.CLIENT_ID) != null) {
-            setClientId((String)keyConfig.get(ClientConfig.CLIENT_ID));
+        if(authServerConfig.getClientId() != null) {
+            setClientId(String.valueOf(authServerConfig.getClientId()));
         }
         // clientSecret is optional
-        if(keyConfig.get(ClientConfig.CLIENT_SECRET) != null) {
-            setClientSecret((String)keyConfig.get(ClientConfig.CLIENT_SECRET));
+        if(authServerConfig.getClientSecret() != null) {
+            setClientSecret(String.valueOf(authServerConfig.getClientSecret()));
         }
         // audience is optional
-        if(keyConfig.get(ClientConfig.AUDIENCE) != null) {
-            setAudience((String)keyConfig.get(ClientConfig.AUDIENCE));
-        }
-        // proxyHost and proxyPort are optional to overwrite the token config inherited.
-        if(keyConfig.get(ClientConfig.PROXY_HOST) != null) {
-            String proxyHost = (String)keyConfig.get(ClientConfig.PROXY_HOST);
-            if(proxyHost.length() > 1) {
-                // overwrite the tokenConfig proxyHost and proxyPort if this particular service has different proxy server
-                setProxyHost(proxyHost);
-                int port = keyConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : Config.loadIntegerValue(ClientConfig.PROXY_PORT, keyConfig.get(ClientConfig.PROXY_PORT));
-                setProxyPort(port);
-            } else {
-                // if this service doesn't need a proxy server, just use an empty string to remove the tokenConfig proxy host.
-                setProxyHost(null);
-                setProxyPort(0);
-            }
+        if(authServerConfig.getAudience() != null) {
+            setAudience(authServerConfig.getAudience());
         }
     }
+
+    private void setAuthServerConfig(OAuthTokenKeyConfig keyConfig) {
+        setServerUrl(keyConfig.getServerUrl());
+        setServiceId(keyConfig.getServiceId());
+        setEnableHttp2(keyConfig.isEnableHttp2());
+        if(jwk) {
+            // there is no additional kid in the path parameter for jwk
+            setUri(keyConfig.getUri());
+        } else {
+            setUri(keyConfig.getUri() + "/" + kid);
+        }
+        // clientId is optional
+        if(keyConfig.getClientId() != null) {
+            setClientId(String.valueOf(keyConfig.getClientId()));
+        }
+        // clientSecret is optional
+        if(keyConfig.getClientSecret() != null) {
+            setClientSecret(String.valueOf(keyConfig.getClientSecret()));
+        }
+        // audience is optional
+        if(keyConfig.getAudience() != null) {
+            setAudience(keyConfig.getAudience());
+        }
+    }
+
 }

@@ -17,10 +17,13 @@
 package com.networknt.client.oauth;
 
 import com.networknt.client.ClientConfig;
+import com.networknt.client.OAuthSignConfig;
+import com.networknt.client.OAuthSignKeyConfig;
 import com.networknt.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.Map;
 
 /**
@@ -31,7 +34,7 @@ import java.util.Map;
  * @author Steve Hu
  */
 public class SignKeyRequest extends KeyRequest {
-    private static Logger logger = LoggerFactory.getLogger(SignKeyRequest.class);
+    private static final Logger logger = LoggerFactory.getLogger(SignKeyRequest.class);
 
     @Deprecated
     public static String SIGN = "sign";
@@ -39,23 +42,22 @@ public class SignKeyRequest extends KeyRequest {
     public SignKeyRequest(String kid) {
         super(kid);
 
-        Map<String, Object> signConfig = ClientConfig.get().getSignConfig();
+        OAuthSignConfig signConfig = ClientConfig.get().getOAuth().getSign();
         if(signConfig != null) {
-            Map<String, Object> keyConfig = (Map<String, Object>)signConfig.get(ClientConfig.KEY);
+            OAuthSignKeyConfig keyConfig = signConfig.getKey();
             if(keyConfig != null) {
-                setServerUrl((String)keyConfig.get(ClientConfig.SERVER_URL));
-                setProxyHost((String)signConfig.get(ClientConfig.PROXY_HOST));
-                int port = signConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : Config.loadIntegerValue(ClientConfig.PROXY_PORT, signConfig.get(ClientConfig.PROXY_PORT));
+                setServerUrl(keyConfig.getServerUrl());
+                setProxyHost(signConfig.getProxyHost());
+                int port = signConfig.getProxyPort() == null ? 443 : signConfig.getProxyPort();
                 setProxyPort(port);
-                setServiceId((String)keyConfig.get(ClientConfig.SERVICE_ID));
-                Object object = keyConfig.get(ClientConfig.ENABLE_HTTP2);
-                if(object != null) setEnableHttp2(Config.loadBooleanValue(ClientConfig.ENABLE_HTTP2, object));
-                setUri(keyConfig.get(ClientConfig.URI) + "/" + kid);
-                setClientId((String)keyConfig.get(ClientConfig.CLIENT_ID));
-                setClientSecret((String)keyConfig.get(ClientConfig.CLIENT_SECRET));
+                setServiceId(keyConfig.getServiceId());
+                setEnableHttp2(keyConfig.isEnableHttp2());
+                setUri(keyConfig.getUri() + "/" + kid);
+                setClientId(String.valueOf(keyConfig.getClientId()));
+                setClientSecret(String.valueOf(keyConfig.getClientSecret()));
                 // audience is optional
-                if(keyConfig.get(ClientConfig.AUDIENCE) != null) {
-                    setAudience((String)keyConfig.get(ClientConfig.AUDIENCE));
+                if(keyConfig.getAudience() != null) {
+                    setAudience(keyConfig.getAudience());
                 }
             } else {
                 logger.error("Error: could not find key section in sign of oauth in client.yml");

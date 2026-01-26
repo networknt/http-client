@@ -9,7 +9,6 @@ import com.networknt.http.client.ssl.ClientX509ExtendedTrustManager;
 import com.networknt.http.client.ssl.CompositeX509TrustManager;
 import com.networknt.monad.Failure;
 import com.networknt.monad.Result;
-import com.networknt.utility.ModuleRegistry;
 import org.apache.commons.lang3.StringUtils;
 import org.owasp.encoder.Encode;
 import org.slf4j.Logger;
@@ -34,12 +33,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
-
 public class HttpClientRequest {
 
     private static final Logger logger = LoggerFactory.getLogger(HttpClientRequest.class);
-    private static final ClientConfig clientConfig = ClientConfig.get();
-    private static SSLContext sslContext = null;
+    private static volatile ClientConfig clientConfig = ClientConfig.get();
+    private static volatile SSLContext sslContext = null;
     HttpClient httpClient;
 
     public static final String TLS = "tls";
@@ -68,12 +66,13 @@ public class HttpClientRequest {
     }
 
     /**
-     * Selects the proxy server to use, if any, when connecting to the network resource referenced by a URL
+     * Selects the proxy server to use, if any, when connecting to the network
+     * resource referenced by a URL
      *
      * @param hostname Http call proxy host name.
-     * @param port Http call proxy host port number.
+     * @param port     Http call proxy host port number.
      */
-    public  void setProxy(String hostname, int port) {
+    public void setProxy(String hostname, int port) {
         this.proxyHost = hostname;
         this.proxyPort = port;
     }
@@ -93,14 +92,14 @@ public class HttpClientRequest {
      *
      * @param authenticator Http call proxy host name.
      */
-    public  void setAuthenticator(Authenticator authenticator) {
+    public void setAuthenticator(Authenticator authenticator) {
         this.authenticator = authenticator;
     }
 
     protected HttpClient buildHttpClient(ClientConfig clientConfig, boolean isHttps) {
 
-        HttpClient.Builder clientBuilder =  HttpClient.newBuilder()
-                .connectTimeout(Duration.ofMillis(clientConfig.getTimeout()));
+        HttpClient.Builder clientBuilder = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(clientConfig.getRequest().getConnectTimeout()));
         if (isHttps) {
             try {
                 clientBuilder.sslContext(createSSLContext());
@@ -113,21 +112,28 @@ public class HttpClientRequest {
         } else {
             clientBuilder.version(HttpClient.Version.HTTP_1_1);
         }
-        if(this.proxyHost != null) clientBuilder.proxy(ProxySelector.of(new InetSocketAddress(this.proxyHost, this.proxyPort == 0 ? 443 : this.proxyPort)));
-        if(this.authenticator != null)  clientBuilder.authenticator(this.authenticator);
-        if(this.executorService != null)  clientBuilder.executor(this.executorService);
+        if (this.proxyHost != null)
+            clientBuilder.proxy(ProxySelector
+                    .of(new InetSocketAddress(this.proxyHost, this.proxyPort == 0 ? 443 : this.proxyPort)));
+        if (this.authenticator != null)
+            clientBuilder.authenticator(this.authenticator);
+        if (this.executorService != null)
+            clientBuilder.executor(this.executorService);
         return clientBuilder.build();
     }
 
-    public HttpResponse<?> send(HttpRequest.Builder builder, HttpResponse.BodyHandler<?> handler) throws InterruptedException, IOException {
+    public HttpResponse<?> send(HttpRequest.Builder builder, HttpResponse.BodyHandler<?> handler)
+            throws InterruptedException, IOException {
         return sendWithRetry(builder, handler, clientConfig.getMaxRequestRetry());
     }
 
-    public CompletableFuture<? extends HttpResponse<?>> sendAsync(HttpRequest.Builder builder, HttpResponse.BodyHandler<?> handler) throws InterruptedException, IOException {
+    public CompletableFuture<? extends HttpResponse<?>> sendAsync(HttpRequest.Builder builder,
+            HttpResponse.BodyHandler<?> handler) throws InterruptedException, IOException {
         return sendAsyncWithRetry(builder, handler, clientConfig.getMaxRequestRetry());
     }
 
-    private HttpResponse<?> sendWithRetry(HttpRequest.Builder builder, HttpResponse.BodyHandler<?> handler, int retries) throws InterruptedException, IOException {
+    private HttpResponse<?> sendWithRetry(HttpRequest.Builder builder, HttpResponse.BodyHandler<?> handler, int retries)
+            throws InterruptedException, IOException {
         for (int attempt = 1; attempt <= retries; attempt++) {
             try {
                 return httpClient.send(builder.build(), handler);
@@ -135,7 +141,7 @@ public class HttpClientRequest {
                 if (attempt == retries) {
                     throw e;
                 }
-                if(clientConfig.getRequestRetryDelay() > 0) {
+                if (clientConfig.getRequestRetryDelay() > 0) {
                     TimeUnit.MILLISECONDS.sleep(clientConfig.getRequestRetryDelay());
                 }
             }
@@ -143,20 +149,22 @@ public class HttpClientRequest {
         throw new IOException("Failed to send request after " + retries + " attempts");
     }
 
-    private CompletableFuture<? extends HttpResponse<?>> sendAsyncWithRetry(HttpRequest.Builder builder, HttpResponse.BodyHandler<?> handler, int retries) throws InterruptedException, IOException {
+    private CompletableFuture<? extends HttpResponse<?>> sendAsyncWithRetry(HttpRequest.Builder builder,
+            HttpResponse.BodyHandler<?> handler, int retries) throws InterruptedException, IOException {
         CompletableFuture<HttpResponse<?>> future = new CompletableFuture<>();
         sendAsyncWithRetry(builder, handler, retries, future, 1);
         return future;
     }
 
-    private void sendAsyncWithRetry(HttpRequest.Builder builder, HttpResponse.BodyHandler<?> handler, int retries, CompletableFuture<HttpResponse<?>> future, int attempt) {
+    private void sendAsyncWithRetry(HttpRequest.Builder builder, HttpResponse.BodyHandler<?> handler, int retries,
+            CompletableFuture<HttpResponse<?>> future, int attempt) {
         httpClient.sendAsync(builder.build(), handler).whenComplete((response, throwable) -> {
             if (throwable == null) {
                 future.complete(response);
             } else {
                 if (attempt < retries) {
                     try {
-                        if(clientConfig.getRequestRetryDelay() > 0) {
+                        if (clientConfig.getRequestRetryDelay() > 0) {
                             TimeUnit.MILLISECONDS.sleep(clientConfig.getRequestRetryDelay());
                         }
                     } catch (InterruptedException e) {
@@ -170,23 +178,24 @@ public class HttpClientRequest {
             }
         });
     }
-    public HttpRequest.Builder initBuilder(String url,  HttpMethod method) throws Exception{
+
+    public HttpRequest.Builder initBuilder(String url, HttpMethod method) throws Exception {
         return initBuilder(new URI(url), method, Optional.empty());
     }
 
-    public HttpRequest.Builder initBuilder(String url,  HttpMethod method, Optional<?> body) throws Exception{
+    public HttpRequest.Builder initBuilder(String url, HttpMethod method, Optional<?> body) throws Exception {
         return initBuilder(new URI(url), method, body);
     }
 
-    public HttpRequest.Builder initBuilder(URI uri,  HttpMethod method) {
+    public HttpRequest.Builder initBuilder(URI uri, HttpMethod method) {
         return initBuilder(uri, method, Optional.empty());
     }
 
-    public HttpRequest.Builder initBuilder(URI uri,  HttpMethod method, Optional<?> body) {
+    public HttpRequest.Builder initBuilder(URI uri, HttpMethod method, Optional<?> body) {
 
         httpClient = buildHttpClient(clientConfig, "https".equals(uri.getScheme()));
         HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .timeout(Duration.ofMillis(clientConfig.getTimeout()))
+                .timeout(Duration.ofMillis(clientConfig.getRequest().getTimeout()))
                 .uri(uri);
         if (HttpMethod.DELETE.equals(method)) {
             builder.DELETE();
@@ -207,11 +216,11 @@ public class HttpClientRequest {
      * This is the method called from client like web server
      *
      * @param builder the http request builder
-     * @param token the bearer token
+     * @param token   the bearer token
      */
-    public void addAuthToken(HttpRequest.Builder builder,  String token) {
-        if(token != null && !token.startsWith("Bearer ")) {
-            if(token.toUpperCase().startsWith("BEARER ")) {
+    public void addAuthToken(HttpRequest.Builder builder, String token) {
+        if (token != null && !token.startsWith("Bearer ")) {
+            if (token.toUpperCase().startsWith("BEARER ")) {
                 // other cases of Bearer
                 token = "Bearer " + token.substring(7);
             } else {
@@ -221,60 +230,66 @@ public class HttpClientRequest {
         builder.setHeader(Headers.AUTHORIZATION_STRING, token);
     }
 
-    public void addRequestHeader(HttpRequest.Builder builder,  String headerName, String headerValue) {
+    public void addRequestHeader(HttpRequest.Builder builder, String headerName, String headerValue) {
         builder.setHeader(headerName, headerValue);
     }
 
-    public void addRequestHeaders(HttpRequest.Builder builder,  Map<String, String> headers) {
-        if (headers!=null) {
-            headers.forEach((k,v)->builder.setHeader(k, v));
+    public void addRequestHeaders(HttpRequest.Builder builder, Map<String, String> headers) {
+        if (headers != null) {
+            headers.forEach((k, v) -> builder.setHeader(k, v));
         }
     }
 
-    public void addTraceabilityId(HttpRequest.Builder builder,  String traceabilityId) {
+    public void addTraceabilityId(HttpRequest.Builder builder, String traceabilityId) {
         builder.setHeader(Headers.TRACEABILITY_ID_STRING, traceabilityId);
     }
 
-    public void addCorrelationId(HttpRequest.Builder builder,  String correlationId) {
+    public void addCorrelationId(HttpRequest.Builder builder, String correlationId) {
         builder.setHeader(Headers.CORRELATION_ID_STRING, correlationId);
     }
 
     /**
      * Add Client Credentials token cached in the client for standalone application
      *
-     * @param builder the http request builder
+     * @param builder     the http request builder
      * @param requestPath the request path
-     * @param scopes the scopes
-     * @param serviceId the service id
+     * @param scopes      the scopes
+     * @param serviceId   the service id
      * @return Result when fail to get jwt, it will return a Status.
      */
     public Result addCcToken(HttpRequest.Builder builder, String requestPath, String scopes, String serviceId) {
         Result<Jwt> result = tokenManager.getJwt(requestPath, scopes, serviceId);
-        if(result.isFailure()) { return Failure.of(result.getError()); }
-        builder.setHeader(Headers.AUTHORIZATION_STRING,  "Bearer " + result.getResult().getJwt());
+        if (result.isFailure()) {
+            return Failure.of(result.getError());
+        }
+        builder.setHeader(Headers.AUTHORIZATION_STRING, "Bearer " + result.getResult().getJwt());
         return result;
     }
 
     /**
-     * Support API to API calls with scope token. The token is the original token from consumer and
+     * Support API to API calls with scope token. The token is the original token
+     * from consumer and
      * the client credentials token of caller API is added from cache.
      *
      * This method is used in API to API call
      *
-     * @param builder the http request builder
-     * @param authToken the authorization token
+     * @param builder     the http request builder
+     * @param authToken   the authorization token
      * @param requestPath the request path
-     * @param scopes the scopes
-     * @param serviceId the service id
+     * @param scopes      the scopes
+     * @param serviceId   the service id
      * @return Result when fail to get jwt, it will return a Status.
      */
-    public Result populateHeader(HttpRequest.Builder builder, String authToken, String requestPath, String scopes, String serviceId) {
+    public Result populateHeader(HttpRequest.Builder builder, String authToken, String requestPath, String scopes,
+            String serviceId) {
         Result<Jwt> result = tokenManager.getJwt(requestPath, scopes, serviceId);
-        if(result.isFailure()) { return Failure.of(result.getError()); }
-        if(authToken == null) {
+        if (result.isFailure()) {
+            return Failure.of(result.getError());
+        }
+        if (authToken == null) {
             authToken = "Bearer " + result.getResult().getJwt();
         } else {
-            builder.setHeader(Headers.SCOPE_TOKEN_STRING,  "Bearer " + result.getResult().getJwt());
+            builder.setHeader(Headers.SCOPE_TOKEN_STRING, "Bearer " + result.getResult().getJwt());
         }
         addAuthToken(builder, authToken);
         return result;
@@ -282,19 +297,19 @@ public class HttpClientRequest {
 
     protected HttpRequest.BodyPublisher getBodyPublisher(Optional<?> body) {
         if (body.isPresent()) {
-            if (body.get() instanceof String ) {
-                return HttpRequest.BodyPublishers.ofString((String)body.get());
+            if (body.get() instanceof String) {
+                return HttpRequest.BodyPublishers.ofString((String) body.get());
             } else if (body.get() instanceof Map) {
-                return ofFormData((Map)body.get());
+                return ofFormData((Map) body.get());
             } else {
                 return HttpRequest.BodyPublishers.ofString(JsonMapper.toJson(body.get()));
             }
         }
         return null;
-        //TODO add binary data BodyPublishers
+        // TODO add binary data BodyPublishers
     }
 
-    private  HttpRequest.BodyPublisher ofFormData(Map<Object, Object> data) {
+    private HttpRequest.BodyPublisher ofFormData(Map<Object, Object> data) {
         var builder = new StringBuilder();
         for (Map.Entry<Object, Object> entry : data.entrySet()) {
             if (builder.length() > 0) {
@@ -315,111 +330,119 @@ public class HttpClientRequest {
      */
     @SuppressWarnings("unchecked")
     public static SSLContext createSSLContext() throws IOException {
-        // return the cached sslContext if it is not null.
-        if(sslContext != null) return sslContext;
-        KeyManager[] keyManagers = null;
-        Map<String, Object> tlsMap = clientConfig.getTlsConfig();
-        if(tlsMap != null) {
-            try {
-                // load key store for client certificate if two way ssl is used.
-                Boolean loadKeyStore = tlsMap.get(LOAD_KEY_STORE) == null ? false : Config.loadBooleanValue(LOAD_KEY_STORE, tlsMap.get(LOAD_KEY_STORE));
-                if (loadKeyStore != null && loadKeyStore) {
-                    String keyStoreName = System.getProperty(KEY_STORE_PROPERTY);
-                    String keyStorePass = System.getProperty(KEY_STORE_PASSWORD_PROPERTY);
-                    if (keyStoreName != null && keyStorePass != null) {
-                        if(logger.isInfoEnabled()) logger.info("Loading key store from system property at " + Encode.forJava(keyStoreName));
+        ClientConfig config = ClientConfig.get();
+        if (sslContext != null && config == clientConfig)
+            return sslContext;
+        synchronized (HttpClientRequest.class) {
+            config = ClientConfig.get();
+            if (sslContext != null && config == clientConfig)
+                return sslContext;
+            clientConfig = config;
+            KeyManager[] keyManagers = null;
+            Map<String, Object> tlsMap = clientConfig.getTlsConfig();
+            if (tlsMap != null) {
+                try {
+                    // load key store for client certificate if two way ssl is used.
+                    Boolean loadKeyStore = tlsMap.get(LOAD_KEY_STORE) == null ? false
+                            : Config.loadBooleanValue(LOAD_KEY_STORE, tlsMap.get(LOAD_KEY_STORE));
+                    if (loadKeyStore != null && loadKeyStore) {
+                        String keyStoreName = System.getProperty(KEY_STORE_PROPERTY);
+                        String keyStorePass = System.getProperty(KEY_STORE_PASSWORD_PROPERTY);
+                        if (keyStoreName != null && keyStorePass != null) {
+                            if (logger.isInfoEnabled())
+                                logger.info(
+                                        "Loading key store from system property at " + Encode.forJava(keyStoreName));
+                        } else {
+                            keyStoreName = (String) tlsMap.get(KEY_STORE);
+                            keyStorePass = (String) tlsMap.get(KEY_STORE_PASS);
+                            if (keyStorePass == null) {
+                                logger.error("Cannot load the config: " + KEY_STORE_PASS + " from client.yml");
+                            }
+                            if (logger.isInfoEnabled())
+                                logger.info("Loading key store from config at " + Encode.forJava(keyStoreName));
+                        }
+                        if (keyStoreName != null && keyStorePass != null) {
+                            String keyPass = (String) tlsMap.get(KEY_PASS);
+                            if (keyPass == null) {
+                                logger.error("Cannot load the config: " + KEY_PASS + " from client.yml");
+                            }
+                            KeyStore keyStore = TlsUtil.loadKeyStore(keyStoreName, keyStorePass.toCharArray());
+                            KeyManagerFactory keyManagerFactory = KeyManagerFactory
+                                    .getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                            keyManagerFactory.init(keyStore, keyPass.toCharArray());
+                            keyManagers = keyManagerFactory.getKeyManagers();
+                        }
+                    }
+                } catch (NoSuchAlgorithmException | UnrecoverableKeyException | KeyStoreException e) {
+                    throw new IOException("Unable to initialise KeyManager[]", e);
+                }
+
+                TrustManager[] trustManagers = null;
+                Boolean loadDefaultTrust = tlsMap.get(LOAD_DEFAULT_TRUST) == null ? false
+                        : Config.loadBooleanValue(LOAD_DEFAULT_TRUST, tlsMap.get(LOAD_DEFAULT_TRUST));
+                List<TrustManager> trustManagerList = new ArrayList<>();
+                try {
+                    // load trust store, this is the server public key certificate
+                    // first check if javax.net.ssl.trustStore system properties is set. It is only
+                    // necessary if the server
+                    // certificate doesn't have the entire chain.
+                    Boolean loadTrustStore = tlsMap.get(LOAD_TRUST_STORE) == null ? false
+                            : Config.loadBooleanValue(LOAD_TRUST_STORE, tlsMap.get(LOAD_TRUST_STORE));
+                    if (loadTrustStore != null && loadTrustStore) {
+                        String trustStoreName = (String) tlsMap.get(TRUST_STORE);
+                        String trustStorePass = (String) tlsMap.get(TRUST_STORE_PASS);
+                        if (trustStorePass == null) {
+                            logger.error("Cannot load the config: " + TRUST_STORE_PASS + " from client.yml");
+                        }
+                        if (logger.isInfoEnabled())
+                            logger.info("Loading trust store from config at {}", Encode.forJava(trustStoreName));
+                        if (trustStoreName != null && trustStorePass != null) {
+                            KeyStore trustStore = TlsUtil.loadKeyStore(trustStoreName, trustStorePass.toCharArray());
+                            TrustManagerFactory trustManagerFactory = TrustManagerFactory
+                                    .getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                            trustManagerFactory.init(trustStore);
+                            trustManagers = trustManagerFactory.getTrustManagers();
+                        }
+                        if (loadDefaultTrust != null && loadDefaultTrust) {
+                            TrustManager[] defaultTrusts = loadDefaultTrustStore();
+                            if (defaultTrusts != null && defaultTrusts.length > 0) {
+                                trustManagerList.addAll(Arrays.asList(defaultTrusts));
+                            }
+                        }
+                        if (trustManagers != null && trustManagers.length > 0) {
+                            trustManagerList.addAll(Arrays.asList(trustManagers));
+                        }
+                    }
+                } catch (Exception e) {
+                    throw new IOException("Unable to initialise TrustManager[]", e);
+                }
+
+                try {
+                    String tlsVersion = (String) tlsMap.get(TLS_VERSION);
+                    if (tlsVersion == null)
+                        tlsVersion = "TLSv1.3";
+                    sslContext = SSLContext.getInstance(tlsVersion);
+                    if (loadDefaultTrust != null && loadDefaultTrust && !trustManagerList.isEmpty()) {
+                        TrustManager[] compositeTrustManagers = {
+                                new CompositeX509TrustManager(convertTrustManagers(trustManagerList)) };
+                        sslContext.init(keyManagers, compositeTrustManagers, null);
                     } else {
-                        keyStoreName = (String) tlsMap.get(KEY_STORE);
-                        keyStorePass = (String) tlsMap.get(KEY_STORE_PASS);
-                        if(keyStorePass == null) {
-                            logger.error("Cannot load the config: " +  KEY_STORE_PASS + " from client.yml");
-                        }
-                        if(logger.isInfoEnabled()) logger.info("Loading key store from config at " + Encode.forJava(keyStoreName));
-                    }
-                    if (keyStoreName != null && keyStorePass != null) {
-                        String keyPass = (String) tlsMap.get(KEY_PASS);
-                        if(keyPass == null) {
-                            logger.error("Cannot load the config: " + KEY_PASS + " from client.yml");
-                        }
-                        KeyStore keyStore = TlsUtil.loadKeyStore(keyStoreName, keyStorePass.toCharArray());
-                        KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-                        keyManagerFactory.init(keyStore, keyPass.toCharArray());
-                        keyManagers = keyManagerFactory.getKeyManagers();
-                    }
-                }
-            } catch (NoSuchAlgorithmException | UnrecoverableKeyException | KeyStoreException e) {
-                throw new IOException("Unable to initialise KeyManager[]", e);
-            }
-
-            TrustManager[] trustManagers = null;
-            Boolean loadDefaultTrust = tlsMap.get(LOAD_DEFAULT_TRUST) == null ? false : Config.loadBooleanValue(LOAD_DEFAULT_TRUST, tlsMap.get(LOAD_DEFAULT_TRUST));
-            List<TrustManager> trustManagerList = new ArrayList<>();
-            try {
-                // load trust store, this is the server public key certificate
-                // first check if javax.net.ssl.trustStore system properties is set. It is only necessary if the server
-                // certificate doesn't have the entire chain.
-                Boolean loadTrustStore = tlsMap.get(LOAD_TRUST_STORE) == null ? false : Config.loadBooleanValue(LOAD_TRUST_STORE, tlsMap.get(LOAD_TRUST_STORE));
-                if (loadTrustStore != null && loadTrustStore) {
-
-                    String trustStoreName = (String) tlsMap.get(TRUST_STORE);;
-                    String trustStorePass = (String) tlsMap.get(TRUST_STORE_PASS);
-                    if(trustStorePass == null) {
-                        logger.error("Cannot load the config: "  + TRUST_STORE_PASS + " from client.yml");
-                    }
-                    if(logger.isInfoEnabled())
-                        logger.info("Loading trust store from config at {}", Encode.forJava(trustStoreName));
-                    if (trustStoreName != null && trustStorePass != null) {
-                        KeyStore trustStore = TlsUtil.loadKeyStore(trustStoreName, trustStorePass.toCharArray());
-                        TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-                        trustManagerFactory.init(trustStore);
-                        trustManagers = trustManagerFactory.getTrustManagers();
-                    }
-                    if (loadDefaultTrust != null && loadDefaultTrust) {
-                        TrustManager[] defaultTrusts = loadDefaultTrustStore();
-                        if (defaultTrusts!=null && defaultTrusts.length>0) {
-                            trustManagerList.addAll(Arrays.asList(defaultTrusts));
+                        if (trustManagers == null || trustManagers.length == 0) {
+                            logger.error("No trust store is loaded. Please check client.yml");
+                        } else {
+                            TrustManager[] extendedTrustManagers = {
+                                    new ClientX509ExtendedTrustManager(trustManagerList) };
+                            sslContext.init(keyManagers, extendedTrustManagers, null);
                         }
                     }
-                    if (trustManagers!=null && trustManagers.length>0) {
-                        trustManagerList.addAll(Arrays.asList(trustManagers));
-                    }
+                } catch (NoSuchAlgorithmException | KeyManagementException e) {
+                    throw new IOException("Unable to create and initialise the SSLContext", e);
                 }
-            } catch (Exception e) {
-                throw new IOException("Unable to initialise TrustManager[]", e);
+            } else {
+                logger.error("TLS configuration section is missing in client.yml");
             }
-
-            try {
-                String tlsVersion = (String)tlsMap.get(TLS_VERSION);
-                if(tlsVersion == null) tlsVersion = "TLSv1.3";
-                sslContext = SSLContext.getInstance(tlsVersion);
-                if (loadDefaultTrust != null && loadDefaultTrust && !trustManagerList.isEmpty()) {
-                    TrustManager[] compositeTrustManagers = {new CompositeX509TrustManager(convertTrustManagers(trustManagerList))};
-                    sslContext.init(keyManagers, compositeTrustManagers, null);
-                } else {
-                    if(trustManagers == null || trustManagers.length == 0) {
-                        logger.error("No trust store is loaded. Please check client.yml");
-                    } else {
-                        TrustManager[] extendedTrustManagers = {new ClientX509ExtendedTrustManager(trustManagerList)};
-                        sslContext.init(keyManagers, extendedTrustManagers, null);
-                    }
-                }
-            } catch (NoSuchAlgorithmException | KeyManagementException e) {
-                throw new IOException("Unable to create and initialise the SSLContext", e);
-            }
-        } else {
-            logger.error("TLS configuration section is missing in client.yml");
+            return sslContext;
         }
-        // register the client config to the module registry.
-        if(logger.isTraceEnabled()) logger.trace("Registering client config to module registry");
-        List<String> masks = List.of("client_secret", "trustStorePass", "keyStorePass", "keyPass");
-        ModuleRegistry.registerModule(
-                ClientConfig.CONFIG_NAME,
-                HttpClientRequest.class.getName(),
-                Config.getNoneDecryptedInstance().getJsonMapConfigNoCache(ClientConfig.CONFIG_NAME),
-                masks
-        );
-
-        return sslContext;
     }
 
     public static List<X509TrustManager> convertTrustManagers(List<TrustManager> trustManagerList) {
@@ -432,12 +455,12 @@ public class HttpClientRequest {
         return x509TrustManagers;
     }
 
-    public  static  TrustManager[] loadDefaultTrustStore() throws Exception {
+    public static TrustManager[] loadDefaultTrustStore() throws Exception {
         Path location = null;
-        String password = "changeit"; //default value for cacerts, we can override it from config
+        String password = "changeit"; // default value for cacerts, we can override it from config
         Map<String, Object> tlsMap = clientConfig.getTlsConfig();
-        if(tlsMap != null &&  tlsMap.get(DEFAULT_CERT_PASS)!=null) {
-            password = (String)tlsMap.get(DEFAULT_CERT_PASS);
+        if (tlsMap != null && tlsMap.get(DEFAULT_CERT_PASS) != null) {
+            password = (String) tlsMap.get(DEFAULT_CERT_PASS);
         }
         String locationProperty = System.getProperty(TRUST_STORE_PROPERTY);
         if (!StringUtils.isEmpty(locationProperty)) {
@@ -446,7 +469,7 @@ public class HttpClientRequest {
             if (f.exists() && f.isFile() && f.canRead()) {
                 location = p;
             }
-        }  else {
+        } else {
             String javaHome = System.getProperty("java.home");
             location = Paths.get(javaHome, "lib", "security", "jssecacerts");
             if (!location.toFile().exists()) {
@@ -472,7 +495,7 @@ public class HttpClientRequest {
         KeyStore trustStore = KeyStore.getInstance(type, Security.getProvider("SUN"));
         try (InputStream is = Files.newInputStream(location)) {
             trustStore.load(is, password.toCharArray());
-            logger.info("JDK default trust store loaded from : {} .", location );
+            logger.info("JDK default trust store loaded from : {} .", location);
         }
         TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX");
         trustManagerFactory.init(trustStore);
