@@ -17,6 +17,7 @@
 package com.networknt.client.oauth;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.networknt.client.AuthServerConfig;
 import com.networknt.client.ClientConfig;
 import com.networknt.config.Config;
 import com.networknt.config.ConfigException;
@@ -126,35 +127,6 @@ public class TokenRequest {
 
     public void setProxyPort(int proxyPort) {
         this.proxyPort = proxyPort;
-    }
-
-    List<String> loadScope(Map<String, Object> acConfig) {
-        List<String> list = null;
-        if(acConfig != null && acConfig.get(ClientConfig.SCOPE) != null) {
-            Object object = acConfig.get(ClientConfig.SCOPE);
-            list = new ArrayList<>();
-            if(object instanceof String) {
-                String s = (String)object;
-                s = s.trim();
-                if(s.startsWith("[")) {
-                    // json format
-                    try {
-                        list = Config.getInstance().getMapper().readValue(s, new TypeReference<List<String>>() {
-                        });
-                    } catch (Exception e) {
-                        throw new ConfigException("could not parse the scope json with a list of string.");
-                    }
-                } else {
-                    // comma separated
-                    list = Arrays.asList(s.split("\\s*,\\s*"));
-                }
-            } else if(object instanceof List) {
-                list = (List<String>)object;
-            } else {
-                throw new ConfigException("scope must be a list of strings.");
-            }
-        }
-        return list;
     }
 
 }

@@ -1,11 +1,14 @@
 package com.networknt.client.oauth;
 
 import com.networknt.client.ClientConfig;
+import com.networknt.client.OAuthTokenConfig;
+import com.networknt.client.OAuthTokenExchangeConfig;
 import com.networknt.config.Config;
 import com.networknt.status.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.Map;
 
 public class TokenExchangeRequest extends TokenRequest {
@@ -58,27 +61,26 @@ public class TokenExchangeRequest extends TokenRequest {
 
     public TokenExchangeRequest() {
         setGrantType(TOKEN_EXCHANGE);
-        Map<String, Object> tokenConfig = ClientConfig.get().getTokenConfig();
+        OAuthTokenConfig tokenConfig = ClientConfig.get().getOAuth().getToken();
         if(tokenConfig != null) {
-            setServerUrl((String)tokenConfig.get(ClientConfig.SERVER_URL));
-            setProxyHost((String)tokenConfig.get(ClientConfig.PROXY_HOST));
-            int port = tokenConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : Config.loadIntegerValue(ClientConfig.PROXY_PORT, tokenConfig.get(ClientConfig.PROXY_PORT));
+            setServerUrl(tokenConfig.getServerUrl());
+            setProxyHost(tokenConfig.getProxyHost());
+            int port = tokenConfig.getProxyPort() == null ? 443 : tokenConfig.getProxyPort();
             setProxyPort(port);
-            setServiceId((String)tokenConfig.get(ClientConfig.SERVICE_ID));
-            Object object = tokenConfig.get(ClientConfig.ENABLE_HTTP2);
-            if(object != null) setEnableHttp2(Config.loadBooleanValue(ClientConfig.ENABLE_HTTP2, object));
-            Map<String, Object> exConfig = (Map<String, Object>) tokenConfig.get(ClientConfig.TOKEN_EXCHANGE);
+            setServiceId(tokenConfig.getServiceId());
+            setEnableHttp2(tokenConfig.isEnableHttp2());
+            OAuthTokenExchangeConfig exConfig = tokenConfig.getTokenExchange();
             if(exConfig != null) {
-                setClientId((String)exConfig.get(ClientConfig.CLIENT_ID));
-                if(exConfig.get(ClientConfig.CLIENT_SECRET) != null) {
-                    setClientSecret((String)exConfig.get(ClientConfig.CLIENT_SECRET));
+                setClientId(String.valueOf(exConfig.getClientId()));
+                if(exConfig.getClientSecret() != null) {
+                    setClientSecret(String.valueOf(exConfig.getClientSecret()));
                 } else {
                     logger.error(new Status(CONFIG_PROPERTY_MISSING, "token_exchange client_secret", "client.yml").toString());
                 }
-                setUri((String)exConfig.get(ClientConfig.URI));
-                setScope(loadScope(exConfig));
-                setSubjectToken((String)exConfig.get(ClientConfig.SUBJECT_TOKEN));
-                setSubjectTokenType((String)exConfig.get(ClientConfig.SUBJECT_TOKEN_TYPE));
+                setUri(exConfig.getUri());
+                setScope(exConfig.getScope());
+                setSubjectToken(exConfig.getSubjectToken());
+                setSubjectTokenType(exConfig.getSubjectTokenType());
             }
         }
     }

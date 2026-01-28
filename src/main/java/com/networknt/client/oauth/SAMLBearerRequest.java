@@ -18,10 +18,13 @@ package com.networknt.client.oauth;
 
 
 import com.networknt.client.ClientConfig;
+import com.networknt.client.OAuthTokenClientCredentialConfig;
+import com.networknt.client.OAuthTokenConfig;
 import com.networknt.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.Map;
 
 /**
@@ -40,8 +43,8 @@ public class SAMLBearerRequest extends TokenRequest {
     static final String GRANT_TYPE_KEY = "grant_type";
     static final String GRANT_TYPE_VALUE = "urn:ietf:params:oauth:grant-type:saml2-bearer";
 
-    private String samlAssertion;
-    private String jwtClientAssertion;
+    private final String samlAssertion;
+    private final String jwtClientAssertion;
     private static final Logger logger = LoggerFactory.getLogger(SAMLBearerRequest.class);
 
     public SAMLBearerRequest(String samlAssertion, String jwtClientAssertion) {
@@ -51,20 +54,19 @@ public class SAMLBearerRequest extends TokenRequest {
         this.jwtClientAssertion = jwtClientAssertion;
 
         try {
-            Map<String, Object> tokenConfig = ClientConfig.get().getTokenConfig();
+            OAuthTokenConfig tokenConfig = ClientConfig.get().getOAuth().getToken();
 
-            setServerUrl((String)tokenConfig.get(ClientConfig.SERVER_URL));
-            setProxyHost((String)tokenConfig.get(ClientConfig.PROXY_HOST));
-            int port = tokenConfig.get(ClientConfig.PROXY_PORT) == null ? 443 : Config.loadIntegerValue(ClientConfig.PROXY_PORT, tokenConfig.get(ClientConfig.PROXY_PORT));
+            setServerUrl(tokenConfig.getServerUrl());
+            setProxyHost(tokenConfig.getProxyHost());
+            int port = tokenConfig.getProxyPort() == null ? 443 : tokenConfig.getProxyPort();
             setProxyPort(port);
-            Object object = tokenConfig.get(ClientConfig.ENABLE_HTTP2);
-            if(object != null) setEnableHttp2(Config.loadBooleanValue(ClientConfig.ENABLE_HTTP2, object));
-            Map<String, Object> ccConfig = (Map<String, Object>) tokenConfig.get(ClientConfig.CLIENT_CREDENTIALS);
+            setEnableHttp2(tokenConfig.isEnableHttp2());
+            OAuthTokenClientCredentialConfig ccConfig = tokenConfig.getClientCredentials();
 
-            setClientId((String) ccConfig.get(ClientConfig.CLIENT_ID));
-            setUri((String) ccConfig.get(ClientConfig.URI));
+            setClientId(String.valueOf(ccConfig.getClientId()));
+            setUri(ccConfig.getUri());
         } catch (NullPointerException e) {
-            logger.error("Nullpointer in config object: " + e);
+            logger.error("Exception:", e);
         }
     }
 
