@@ -1,3 +1,11 @@
+
+## [1.0.17](https://github.com/networknt/http-client/tree/1.0.14) (2025-10-09)
+
+**Fixed bugs:**
+
+- upgrade to java 21
+- fixes #46 refactor the config class for reload (#47)
+
 ## [1.0.16](https://github.com/networknt/http-client/tree/1.0.14) (2025-10-09)
 
 **Fixed bugs:**
