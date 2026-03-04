@@ -43,16 +43,14 @@
         </snapshotRepository>
     </distributionManagement>
 
-    <repositories>
+            <repositories>
         <repository>
-            <id>snapshot</id>
-            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
+            <id>confluent</id>
+            <url>https://packages.confluent.io/maven/</url>
+        </repository>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
         </repository>
         <repository>
             <id>central</id>
@@ -60,6 +58,13 @@
             <releases>
                 <enabled>true</enabled>
             </releases>
+        </repository>
+        <repository>
+            <id>snapshot</id>
+            <url>https://central.sonatype.org/content/repositories/snapshots</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
         </repository>
     </repositories>
     <pluginRepositories>
@@ -80,7 +85,7 @@
         <version.slf4j>2.0.7</version.slf4j>
         <version.common-lang3>3.18.0</version.common-lang3>
         <version.encoder>1.2.1</version.encoder>
-        <version.jackson>2.19.4</version.jackson>
+        <version.jackson>2.21.1</version.jackson>
         <version.logback>1.4.14</version.logback>
         <version.junit>5.11.4</version.junit>
         <version.mockito>2.7.21</version.mockito>
@@ -90,6 +95,18 @@
         <version.maven-surefire>2.22.2</version.maven-surefire>
         <version.maven-gpg>3.2.7</version.maven-gpg>
     </properties>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${version.jackson}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>com.networknt</groupId>
@@ -145,17 +162,14 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>${version.jackson}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
-            <version>${version.jackson}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
-            <version>${version.jackson}</version>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
