@@ -552,10 +552,12 @@ public class OauthHelper {
             }
             HttpRequest request = requestBuilder.build();
 
-            CompletableFuture<HttpResponse<String>> response = keyClient.sendAsync(request,
-                    HttpResponse.BodyHandlers.ofString());
-            return response.thenApply(HttpResponse::body).get(ClientConfig.get().getRequest().getTimeout(),
-                    TimeUnit.MILLISECONDS);
+            HttpResponse<String> response = keyClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .get(ClientConfig.get().getRequest().getTimeout(), TimeUnit.MILLISECONDS);
+            if(response.statusCode() >= 400) {
+                logger.error("Error getting key from OAuth server. Status: {}, Body: {}", response.statusCode(), response.body());
+            }
+            return response.body();
         } catch (Exception e) {
             logger.error("Exception:", e);
             throw new ClientException(e);
