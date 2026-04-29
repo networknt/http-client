@@ -1,3 +1,10 @@
+## [1.0.18](https://github.com/networknt/http-client/tree/1.0.18) (2026-04-27)
+
+**Fixed bugs:**
+
+- fixes #52 fix the client.verifyHostname false timing in Java 25
+- fixes #50 log the error for jwk if response code is 400 and up (#51)
+- fixes #49 remove unused org.apache package
 
 ## [1.0.17](https://github.com/networknt/http-client/tree/1.0.14) (2025-10-09)
 
