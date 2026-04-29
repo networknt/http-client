@@ -27,3 +27,7 @@ node_modules/
 dist/
 .idea/
 *.iml
+.gitnexus
+.claude/
+AGENTS.md
+CLAUDE.md
