@@ -118,6 +118,7 @@ public class OauthHelper {
                     signClient = null;
                     derefClient = null;
                     try {
+                        HttpClientRequest.applyHostnameVerificationConfig(clientConfig);
                         HttpClient.Builder clientBuilder = HttpClient.newBuilder()
                                 .followRedirects(HttpClient.Redirect.NORMAL)
                                 .connectTimeout(Duration.ofMillis(clientConfig.getRequest().getConnectTimeout()))
@@ -219,6 +220,7 @@ public class OauthHelper {
                     signClient = null;
                     derefClient = null;
                     try {
+                        HttpClientRequest.applyHostnameVerificationConfig(clientConfig);
                         HttpClient.Builder clientBuilder = HttpClient.newBuilder()
                                 .followRedirects(HttpClient.Redirect.NORMAL)
                                 .connectTimeout(Duration.ofMillis(clientConfig.getRequest().getConnectTimeout()))
@@ -320,6 +322,7 @@ public class OauthHelper {
                     signClient = null;
                     derefClient = null;
                     try {
+                        HttpClientRequest.applyHostnameVerificationConfig(clientConfig);
                         HttpClient.Builder clientBuilder = HttpClient.newBuilder()
                                 .followRedirects(HttpClient.Redirect.NORMAL)
                                 .connectTimeout(Duration.ofMillis(clientConfig.getRequest().getConnectTimeout()))
@@ -409,6 +412,7 @@ public class OauthHelper {
                     signClient = null;
                     derefClient = null;
                     try {
+                        HttpClientRequest.applyHostnameVerificationConfig(clientConfig);
                         HttpClient.Builder clientBuilder = HttpClient.newBuilder()
                                 .followRedirects(HttpClient.Redirect.NORMAL)
                                 .connectTimeout(Duration.ofMillis(clientConfig.getRequest().getConnectTimeout()))
@@ -520,6 +524,7 @@ public class OauthHelper {
         try {
             // The key client is used only during the server startup or jwt key is rotated.
             // Don't cache the keyClient.
+            HttpClientRequest.applyHostnameVerificationConfig(ClientConfig.get());
             HttpClient.Builder clientBuilder = HttpClient.newBuilder()
                     .followRedirects(HttpClient.Redirect.NORMAL)
                     .connectTimeout(Duration.ofMillis(ClientConfig.get().getRequest().getConnectTimeout()))
@@ -588,6 +593,7 @@ public class OauthHelper {
                     signClient = null;
                     derefClient = null;
                     try {
+                        HttpClientRequest.applyHostnameVerificationConfig(clientConfig);
                         HttpClient.Builder clientBuilder = HttpClient.newBuilder()
                                 .followRedirects(HttpClient.Redirect.NORMAL)
                                 .connectTimeout(Duration.ofMillis(clientConfig.getRequest().getConnectTimeout()))
@@ -703,6 +709,7 @@ public class OauthHelper {
                     signClient = null;
                     derefClient = null;
                     try {
+                        HttpClientRequest.applyHostnameVerificationConfig(clientConfig);
                         HttpClient.Builder clientBuilder = HttpClient.newBuilder()
                                 .followRedirects(HttpClient.Redirect.NORMAL)
                                 .connectTimeout(Duration.ofMillis(clientConfig.getRequest().getConnectTimeout()))
