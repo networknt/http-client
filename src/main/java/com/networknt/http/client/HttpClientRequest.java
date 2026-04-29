@@ -98,6 +98,7 @@ public class HttpClientRequest {
 
     protected HttpClient buildHttpClient(ClientConfig clientConfig, boolean isHttps) {
 
+        applyHostnameVerificationConfig(clientConfig);
         HttpClient.Builder clientBuilder = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(clientConfig.getRequest().getConnectTimeout()));
         if (isHttps) {
@@ -120,6 +121,20 @@ public class HttpClientRequest {
         if (this.executorService != null)
             clientBuilder.executor(this.executorService);
         return clientBuilder.build();
+    }
+
+    /**
+     * The JDK HTTP client reads this internal property during client initialization.
+     * Apply it before any HttpClient builder is created so client.verifyHostname=false
+     * remains effective on newer JDKs.
+     */
+    public static void applyHostnameVerificationConfig(ClientConfig config) {
+        Map<String, Object> tlsMap = config.getTlsConfig();
+        if (tlsMap == null || tlsMap.get(com.networknt.http.client.ssl.TLSConfig.VERIFY_HOSTNAME) == null
+                || !Boolean.TRUE.equals(Config.loadBooleanValue(com.networknt.http.client.ssl.TLSConfig.VERIFY_HOSTNAME,
+                        tlsMap.get(com.networknt.http.client.ssl.TLSConfig.VERIFY_HOSTNAME)))) {
+            System.setProperty("jdk.internal.httpclient.disableHostnameVerification", Boolean.TRUE.toString());
+        }
     }
 
     public HttpResponse<?> send(HttpRequest.Builder builder, HttpResponse.BodyHandler<?> handler)
