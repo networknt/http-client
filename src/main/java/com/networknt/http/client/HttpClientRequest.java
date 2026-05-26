@@ -472,7 +472,7 @@ public class HttpClientRequest {
 
     public static TrustManager[] loadDefaultTrustStore() throws Exception {
         Path location = null;
-        String password = "changeit"; // default value for cacerts, we can override it from config
+        String password = null;
         Map<String, Object> tlsMap = clientConfig.getTlsConfig();
         if (tlsMap != null && tlsMap.get(DEFAULT_CERT_PASS) != null) {
             password = (String) tlsMap.get(DEFAULT_CERT_PASS);
@@ -509,7 +509,7 @@ public class HttpClientRequest {
         }
         KeyStore trustStore = KeyStore.getInstance(type, Security.getProvider("SUN"));
         try (InputStream is = Files.newInputStream(location)) {
-            trustStore.load(is, password.toCharArray());
+            trustStore.load(is, password == null ? null : password.toCharArray());
             logger.info("JDK default trust store loaded from : {} .", location);
         }
         TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX");
