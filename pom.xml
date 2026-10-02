@@ -87,7 +87,7 @@
         <version.mockito>5.24.0</version.mockito>
         <version.aspectj>1.9.7</version.aspectj>
         <version.maven-javadoc>3.12.0</version.maven-javadoc>
-        <versions.maven-version>2.4</versions.maven-version>
+        <versions.maven-version>2.22.0</versions.maven-version>
         <version.maven-surefire>3.6.0</version.maven-surefire>
         <version.maven-gpg>3.2.7</version.maven-gpg>
     </properties>
