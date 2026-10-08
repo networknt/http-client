@@ -45,7 +45,8 @@ public class Jwt {
     /**
      * jwt expire time in millisecond so that we don't need to parse the jwt.
      */
-    private long expire;
+    // Published last with a refreshed token so the lock-free fresh-token path sees its data.
+    private volatile long expire;
     private volatile boolean renewing = false;
     private volatile long expiredRetryTimeout;
     private volatile long earlyRetryTimeout;

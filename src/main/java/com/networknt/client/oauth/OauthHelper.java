@@ -867,27 +867,41 @@ public class OauthHelper {
      * @return When success return Jwt; When fail return Status.
      */
     public static Result<Jwt> populateCCToken(final Jwt jwt) {
-        boolean isInRenewWindow = jwt.getExpire() - System.currentTimeMillis() < Jwt.getTokenRenewBeforeExpired();
-        logger.trace("isInRenewWindow = " + isInRenewWindow);
-        // if not in renew window, return the current jwt.
-        if (!isInRenewWindow) {
+        long now = System.currentTimeMillis();
+        long expiry = jwt.getExpire();
+        if (expiry > now && expiry - now >= Jwt.getTokenRenewBeforeExpired()) {
             return Success.of(jwt);
         }
-        // the same jwt shouldn't be renew at the same time. different jwt shouldn't
-        // affect each other's renew activity.
         synchronized (jwt) {
-            // if token expired, try to renew synchronously
-            if (jwt.getExpire() <= System.currentTimeMillis()) {
-                Result<Jwt> result = renewCCTokenSync(jwt);
-                if (logger.isTraceEnabled())
-                    logger.trace("Check secondary token is done!");
-                return result;
-            } else {
-                // otherwise renew token silently
-                renewCCTokenAsync(jwt);
-                if (logger.isTraceEnabled())
-                    logger.trace("Check secondary token is done!");
-                return Success.of(jwt);
+            long waitDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(
+                    (long) ClientConfig.get().getRequest().getTimeout()
+                            + ClientConfig.get().getRequest().getConnectTimeout() + 50);
+            while (true) {
+                // Re-check after acquiring the lock or waiting for another caller's refresh.
+                now = System.currentTimeMillis();
+                expiry = jwt.getExpire();
+                if (expiry > now && expiry - now >= Jwt.getTokenRenewBeforeExpired()) {
+                    return Success.of(jwt);
+                }
+                if (expiry > now) {
+                    renewCCTokenAsync(jwt);
+                    return Success.of(jwt);
+                }
+                if (!jwt.isRenewing()) {
+                    return renewCCTokenSync(jwt);
+                }
+                // An async refresh may still be running when its old token expires.
+                // Wait for that refresh rather than issue a parallel token request.
+                long remaining = waitDeadline - System.nanoTime();
+                if (remaining <= 0) {
+                    return Failure.of(new Status(STATUS_CLIENT_CREDENTIALS_TOKEN_NOT_AVAILABLE));
+                }
+                try {
+                    TimeUnit.NANOSECONDS.timedWait(jwt, remaining);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return Failure.of(new Status(STATUS_CLIENT_CREDENTIALS_TOKEN_NOT_AVAILABLE));
+                }
             }
         }
     }
@@ -902,23 +916,21 @@ public class OauthHelper {
      *         in; return Status when fail;
      */
     private static Result<Jwt> renewCCTokenSync(final Jwt jwt) {
-        // Already expired, try to renew getCCTokenSynchronously but let requests use
-        // the old token.
-        logger.trace("In renew window and token is already expired.");
-        // the token can be renewed when it's not on renewing or current time is lager
-        // than retrying interval
-        if (!jwt.isRenewing() || System.currentTimeMillis() > jwt.getExpiredRetryTimeout()) {
-            jwt.setRenewing(true);
-            jwt.setEarlyRetryTimeout(System.currentTimeMillis() + Jwt.getExpiredRefreshRetryDelay());
-            Result<Jwt> result = getCCTokenRemotely(jwt);
-            // set renewing flag to false no mater fail or success
-            jwt.setRenewing(false);
-            return result;
-        } else {
-            if (logger.isTraceEnabled())
-                logger.trace("Circuit breaker is tripped and not timeout yet!");
-            // token is renewing
+        if (System.currentTimeMillis() < jwt.getExpiredRetryTimeout()) {
             return Failure.of(new Status(STATUS_CLIENT_CREDENTIALS_TOKEN_NOT_AVAILABLE));
+        }
+        jwt.setRenewing(true);
+        jwt.setExpiredRetryTimeout(System.currentTimeMillis() + Jwt.getExpiredRefreshRetryDelay());
+        try {
+            Result<Jwt> result = getCCTokenRemotely(jwt);
+            if (result.isSuccess()) {
+                jwt.setExpiredRetryTimeout(0);
+                jwt.setEarlyRetryTimeout(0);
+            }
+            return result;
+        } finally {
+            jwt.setRenewing(false);
+            jwt.notifyAll();
         }
     }
 
@@ -930,25 +942,39 @@ public class OauthHelper {
      * @param jwt the jwt you want to renew
      */
     private static void renewCCTokenAsync(final Jwt jwt) {
-        // Not expired yet, try to renew async but let requests use the old token.
-        logger.trace("In renew window but token is not expired yet.");
-        if (!jwt.isRenewing() || System.currentTimeMillis() > jwt.getEarlyRetryTimeout()) {
-            jwt.setRenewing(true);
-            jwt.setEarlyRetryTimeout(System.currentTimeMillis() + Jwt.getEarlyRefreshRetryDelay());
-            logger.trace("Retrieve token async is called while token is not expired yet");
-
-            ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-
+        if (jwt.isRenewing() || System.currentTimeMillis() < jwt.getEarlyRetryTimeout()) {
+            return;
+        }
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        jwt.setRenewing(true);
+        jwt.setEarlyRetryTimeout(System.currentTimeMillis() + Jwt.getEarlyRefreshRetryDelay());
+        try {
             executor.schedule(() -> {
-                Result<Jwt> result = getCCTokenRemotely(jwt);
-                if (result.isFailure()) {
-                    // swallow the exception here as it is on a best effort basis.
-                    logger.error("Async retrieve token error with status: {}", result.getError().toString());
+                boolean succeeded = false;
+                try {
+                    Result<Jwt> result = getCCTokenRemotely(jwt);
+                    succeeded = result.isSuccess();
+                    if (result.isFailure()) {
+                        logger.error("Async retrieve token error with status: {}", result.getError().toString());
+                    }
+                } catch (RuntimeException e) {
+                    logger.error("Async token refresh failed", e);
+                } finally {
+                    synchronized (jwt) {
+                        jwt.setEarlyRetryTimeout(succeeded ? 0
+                                : System.currentTimeMillis() + Jwt.getEarlyRefreshRetryDelay());
+                        jwt.setExpiredRetryTimeout(succeeded ? 0
+                                : System.currentTimeMillis() + Jwt.getExpiredRefreshRetryDelay());
+                        jwt.setRenewing(false);
+                        jwt.notifyAll();
+                    }
                 }
-                // set renewing flag to false after response, doesn't matter if it's success or
-                // fail.
-                jwt.setRenewing(false);
             }, 50, TimeUnit.MILLISECONDS);
+        } catch (RuntimeException | Error e) {
+            jwt.setRenewing(false);
+            jwt.notifyAll();
+            throw e;
+        } finally {
             executor.shutdown();
         }
     }
@@ -976,23 +1002,20 @@ public class OauthHelper {
     }
 
     protected static Result<Jwt> updateJwtWithTokenResponse(Jwt jwt, TokenResponse tokenResponse) {
-        jwt.setJwt(tokenResponse.getAccessToken());
-
-        // extracting the jwt.exp claim as it is the most reliable source to calculate
-        // expire time.
-        // Auth Server response payload body is not as reliable since it can be cached
-        // and not updated.
+        // Parse before publishing: a malformed response must not replace the valid token.
+        final long expiry;
         try {
-            jwt.setExpire(getJwtExp(jwt.getJwt()));
-        } catch (JsonProcessingException e) {
+            expiry = getJwtExp(tokenResponse.getAccessToken());
+        } catch (JsonProcessingException | IllegalArgumentException e) {
             logger.error("Error parsing JWT token body and retrieving exp claim", e);
             return Failure.of(new Status(GET_TOKEN_ERROR, "Error parsing JWT token body and retrieving exp claim"));
         }
-
-        logger.info("Get client credentials token {} with exp claim {} milliseconds", jwt.getJwt().substring(0, 20),
-                jwt.getExpire());
-        // set the scope for future usage.
-        jwt.setScopes(tokenResponse.getScope());
+        synchronized (jwt) {
+            jwt.setJwt(tokenResponse.getAccessToken());
+            jwt.setScopes(tokenResponse.getScope());
+            jwt.setExpire(expiry);
+        }
+        logger.info("Get client credentials token with exp claim {} milliseconds", expiry);
         return Success.of(jwt);
     }
 
