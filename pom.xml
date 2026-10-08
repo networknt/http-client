@@ -77,7 +77,7 @@
         <java.version>25</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <version.light-4j>2.4.1-SNAPSHOT</version.light-4j>
-        <version.snakeyaml>2.4</version.snakeyaml>
+        <version.snakeyaml>2.7</version.snakeyaml>
         <version.slf4j>2.0.7</version.slf4j>
         <version.common-lang3>3.18.0</version.common-lang3>
         <version.encoder>1.5.0</version.encoder>
