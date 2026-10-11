@@ -1,3 +1,16 @@
+## [2.4.1](https://github.com/networknt/http-client/tree/2.4.1) (2026-10-11)
+
+**Commits:**
+
+- upgrade to version 2.4.1 before release in master branch ([cd147e6](https://github.com/networknt/http-client/commit/cd147e69344d05127e75fe456f729a910c452165)) (by Steve Hu)
+- upgrade maven-gpg to 3.2.8 from 3.2.7 ([465da24](https://github.com/networknt/http-client/commit/465da24fa9b8181af3189ffa1ca47ce5ba9d1a9e)) (by Steve Hu)
+- build: upgrade JUnit to 6.1.3 ([3a439a1](https://github.com/networknt/http-client/commit/3a439a13bcd6472188a483dd8f9b74aa5695dc3c)) (by Steve Hu)
+- fixes #56 Make client token-expiry and refresh tests deterministic ([6b5b33a](https://github.com/networknt/http-client/commit/6b5b33a42157724d227e415ffdd9d77ca6d26ec9)) (by Steve Hu)
+- upgrade logback to 1.6.5 from 1.6.3 ([56b9cb1](https://github.com/networknt/http-client/commit/56b9cb1676bfcf8b1514c67d159fb29530cd37e5)) (by Steve Hu)
+- upgrade snakeyaml to 2.7 from 2.4 ([511a831](https://github.com/networknt/http-client/commit/511a8312b7e3ab9b95d9c913645efbc99d461ec6)) (by Steve Hu)
+- upgrade to version 2.4.1-SNAPSHOT after release in master branch ([177433e](https://github.com/networknt/http-client/commit/177433e648fc3f5d3046192f1ab6df5ed2b6ba68)) (by Steve Hu)
+- update changelog.md ([69a09e8](https://github.com/networknt/http-client/commit/69a09e84ab0e781a29677aa2e03df40e6cc44fb0)) (by Steve Hu)
+
 ## [2.4.0](https://github.com/networknt/http-client/tree/2.4.0) (2026-10-08)
 
 **Commits:**
