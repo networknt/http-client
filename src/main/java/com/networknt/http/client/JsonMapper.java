@@ -17,32 +17,28 @@
 package com.networknt.http.client;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
 public class JsonMapper {
-    public static ObjectMapper objectMapper = new ObjectMapper();
-
-    static {
-        objectMapper.configure(com.fasterxml.jackson.core.JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN, true);
-        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-        objectMapper.registerModule(new JavaTimeModule());
-    }
+    public static ObjectMapper objectMapper = com.networknt.config.Jackson2Defaults.builder()
+            .enable(tools.jackson.core.StreamWriteFeature.WRITE_BIGDECIMAL_AS_PLAIN)
+            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+            .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+            .changeDefaultPropertyInclusion(inclusion -> inclusion.withValueInclusion(JsonInclude.Include.NON_NULL)
+                    .withContentInclusion(JsonInclude.Include.NON_NULL))
+            .build();
 
     public static String toJson(Object x) {
         try {
             return objectMapper.writeValueAsString(x);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new RuntimeException(e);
         }
     }
@@ -50,7 +46,7 @@ public class JsonMapper {
     public static <T> T fromJson(String json, Class<T> targetType) {
         try {
             return objectMapper.readValue(json, targetType);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new RuntimeException(e);
         }
     }
@@ -58,7 +54,7 @@ public class JsonMapper {
     public static Map<String, Object> string2Map(String s) {
         try {
             return objectMapper.readValue(s, new TypeReference<Map<String, Object>>(){});
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new RuntimeException(e);
         }
     }
@@ -66,7 +62,7 @@ public class JsonMapper {
     public static List<Map<String, Object>> string2List(String s) {
         try {
             return objectMapper.readValue(s, new TypeReference<List<Map<String, Object>>>(){});
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new RuntimeException(e);
         }
     }

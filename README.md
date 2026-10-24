@@ -125,3 +125,61 @@ If we need load self-signed trust from client truststore, set the config value t
 ```
 
 System will load the client truststore and default certs together for SSL context
+
+
+### Jackson 3 migration
+
+The development line uses Jackson 3.2.3 (`tools.jackson.core` coordinates and
+`tools.jackson` Java packages). Annotation packages remain under
+`com.fasterxml.jackson.annotation`. Public mapper/Jackson exception APIs are
+source and binary incompatible. Coordinate light-4j and downstream consumers
+and decide the next-major release before publishing; project versions remain
+unchanged during implementation. The pre-migration `2.x` branch preserves the
+Jackson 2 API.
+
+`com.networknt.http.client.JsonMapper.objectMapper` is built immutably with the
+measured common Jackson 2 feature profile. It retains plain BigDecimals,
+omission of null properties and null map contents, permissive unknown-property
+handling, empty-bean serialization, property order, primitive-null coercion,
+trailing-token handling and getter-backed collection binding. Unlike the
+light-4j config helper, this mapper retains timestamp date/time output: Instant
+uses numeric timestamps and LocalDate uses an array. Java-time support is built
+in; the separate module is removed. Common-feature snapshots do not establish
+parity for removed/renamed flags or arbitrary application types.
+
+Jackson 3 failures are unchecked `JacksonException` instances. The JSON helpers
+retain RuntimeException wrapping. OAuth token parsing retains its failure result
+and escape fallback, while network IOException catches remain in place. A
+malformed JSON document now reports StreamReadException rather than the former
+JsonParseException.
+
+Build order: install migrated light-4j lower modules in the same isolated Maven
+repository before building this repository; install http-client there before
+building the rest of light-4j. These local installs do not publish snapshots to
+remote repositories. Classic SnakeYAML pins remain for the final cleanup phase.
+
+
+Accepted Optional difference: this mapper previously registered only Java-time
+support and rejected `Optional.of("x")` with InvalidDefinitionException.
+Jackson 3 includes Optional support and writes that value as `"x"`. This built-in
+behavior was explicitly accepted during migration and has regression coverage.
+
+
+The HTTP mapper now derives its common policy from the public
+`com.networknt.config.Jackson2Defaults.builder()` in migrated light-4j. It keeps
+its own unknown-property, empty-bean, null inclusion and plain-decimal overrides.
+Read/write depth remains 1,000 and string length remains 20,000,000, matching
+Jackson 2.22.3; the other measured stream limits are shared as well. Common
+feature snapshots are owned by light-4j config tests; HTTP tests verify its
+overrides and nested input rather than copying that reflective test fixture.
+
+JWT `exp` numeric strings remain accepted (`"123"` means 123,000 milliseconds).
+A non-numeric `exp` returns `GET_TOKEN_ERROR` and preserves the existing token,
+expiry and scopes. Both paths have direct regression tests.
+
+Build this PR together with light-4j #2814. Its
+`scripts/verify-jackson3-bootstrap.sh` builds the coupled sources using a
+dedicated Maven repository containing no cached networknt artifacts. Existing
+snapshot coordinates do not distinguish Jackson 2 from Jackson 3 artifacts;
+coordinated next-major publication and separate-cache resolution remain release
+gates.
