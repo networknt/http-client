@@ -23,7 +23,7 @@ public class ClientX509ExtendedTrustManager implements X509TrustManager {
         try {
             trustManager.checkClientTrusted(chain, authType);
         } catch (CertificateException e) {
-            throw new CertificateException("None of the TrustManagers trust this certificate chain");
+            throw new CertificateException("None of the TrustManagers trust this certificate chain", e);
         }
     }
 
@@ -33,7 +33,7 @@ public class ClientX509ExtendedTrustManager implements X509TrustManager {
             trustManager.checkServerTrusted(chain, authType);
             return; // someone trusts them. success!
         } catch (CertificateException e) {
-            throw new CertificateException("None of the TrustManagers trust this certificate chain");
+            throw new CertificateException("None of the TrustManagers trust this certificate chain", e);
         }
     }
 
