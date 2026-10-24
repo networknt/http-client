@@ -8,6 +8,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Delegates to the first configured trust manager. Certificate failures propagate
+ * unchanged so JSSE can inspect their validation causes when selecting TLS alerts.
+ * Callers and exception logs can therefore see the delegate's certificate diagnostics.
+ */
 public class ClientX509ExtendedTrustManager implements X509TrustManager {
     private final X509TrustManager trustManager;
 
@@ -20,21 +25,12 @@ public class ClientX509ExtendedTrustManager implements X509TrustManager {
 
     @Override
     public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-        try {
-            trustManager.checkClientTrusted(chain, authType);
-        } catch (CertificateException e) {
-            throw new CertificateException("None of the TrustManagers trust this certificate chain");
-        }
+        trustManager.checkClientTrusted(chain, authType);
     }
 
     @Override
     public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-        try {
-            trustManager.checkServerTrusted(chain, authType);
-            return; // someone trusts them. success!
-        } catch (CertificateException e) {
-            throw new CertificateException("None of the TrustManagers trust this certificate chain");
-        }
+        trustManager.checkServerTrusted(chain, authType);
     }
 
     @Override
