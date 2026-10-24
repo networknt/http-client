@@ -15,7 +15,7 @@
  */
 package com.networknt.client.oauth;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import tools.jackson.core.JacksonException;
 import com.networknt.client.ClientConfig;
 import com.networknt.cluster.Cluster;
 import com.networknt.common.ContentType;
@@ -51,7 +51,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.commons.codec.binary.Base64.*;
 
@@ -1006,7 +1006,7 @@ public class OauthHelper {
         final long expiry;
         try {
             expiry = getJwtExp(tokenResponse.getAccessToken());
-        } catch (JsonProcessingException | IllegalArgumentException e) {
+        } catch (JacksonException | IllegalArgumentException e) {
             logger.error("Error parsing JWT token body and retrieving exp claim", e);
             return Failure.of(new Status(GET_TOKEN_ERROR, "Error parsing JWT token body and retrieving exp claim"));
         }
@@ -1019,7 +1019,7 @@ public class OauthHelper {
         return Success.of(jwt);
     }
 
-    public static long getJwtExp(String jwt) throws JsonProcessingException {
+    public static long getJwtExp(String jwt) throws JacksonException {
         String[] chunks = jwt.split("\\.");
         if (chunks.length != 3) {
             logger.error("Invalid JWT token received");
@@ -1068,7 +1068,7 @@ public class OauthHelper {
                 try {
                     String escapedStr = Config.getInstance().getMapper().writeValueAsString(responseBody);
                     return escapedStr.substring(1, escapedStr.length() - 1);
-                } catch (JsonProcessingException e) {
+                } catch (JacksonException e) {
                     logger.error("escape json response fails");
                     return responseBody;
                 }

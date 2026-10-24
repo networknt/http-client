@@ -1,6 +1,6 @@
 package com.networknt.client.oauth;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import tools.jackson.core.JacksonException;
 import com.networknt.monad.Result;
 import com.networknt.status.Status;
 import org.junit.jupiter.api.Assertions;
@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 
 public class OAuthHelperTest {
     @Test
-    void testUpdateJwtWithTokenResponse_Success() throws JsonProcessingException {
+    void testUpdateJwtWithTokenResponse_Success() throws JacksonException {
         // Arrange
         Jwt jwt = new Jwt();
         TokenResponse tokenResponse = new TokenResponse();

@@ -16,7 +16,7 @@
 
 package com.networknt.client.oauth;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import tools.jackson.core.type.TypeReference;
 import com.networknt.client.ClientConfig;
 import com.networknt.client.OAuthTokenAuthorizationCodeConfig;
 import com.networknt.client.OAuthTokenConfig;
