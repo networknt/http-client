@@ -163,3 +163,23 @@ Accepted Optional difference: this mapper previously registered only Java-time
 support and rejected `Optional.of("x")` with InvalidDefinitionException.
 Jackson 3 includes Optional support and writes that value as `"x"`. This built-in
 behavior was explicitly accepted during migration and has regression coverage.
+
+
+The HTTP mapper now derives its common policy from the public
+`com.networknt.config.Jackson2Defaults.builder()` in migrated light-4j. It keeps
+its own unknown-property, empty-bean, null inclusion and plain-decimal overrides.
+Read/write depth remains 1,000 and string length remains 20,000,000, matching
+Jackson 2.22.3; the other measured stream limits are shared as well. Common
+feature snapshots are owned by light-4j config tests; HTTP tests verify its
+overrides and nested input rather than copying that reflective test fixture.
+
+JWT `exp` numeric strings remain accepted (`"123"` means 123,000 milliseconds).
+A non-numeric `exp` returns `GET_TOKEN_ERROR` and preserves the existing token,
+expiry and scopes. Both paths have direct regression tests.
+
+Build this PR together with light-4j #2814. Its
+`scripts/verify-jackson3-bootstrap.sh` builds the coupled sources using a
+dedicated Maven repository containing no cached networknt artifacts. Existing
+snapshot coordinates do not distinguish Jackson 2 from Jackson 3 artifacts;
+coordinated next-major publication and separate-cache resolution remain release
+gates.

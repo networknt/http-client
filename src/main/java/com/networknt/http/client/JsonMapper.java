@@ -27,12 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 public class JsonMapper {
-    public static ObjectMapper objectMapper = tools.jackson.databind.json.JsonMapper.builderWithJackson2Defaults()
-            .enable(tools.jackson.databind.MapperFeature.DEFAULT_VIEW_INCLUSION)
-            .disable(tools.jackson.databind.MapperFeature.ALLOW_VOID_VALUED_PROPERTIES)
-            .enable(SerializationFeature.FAIL_ON_ORDER_MAP_BY_INCOMPARABLE_KEY)
-            .disable(tools.jackson.core.StreamReadFeature.USE_FAST_DOUBLE_PARSER,
-                    tools.jackson.core.StreamReadFeature.USE_FAST_BIG_NUMBER_PARSER)
+    public static ObjectMapper objectMapper = com.networknt.config.Jackson2Defaults.builder()
             .enable(tools.jackson.core.StreamWriteFeature.WRITE_BIGDECIMAL_AS_PLAIN)
             .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
             .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
