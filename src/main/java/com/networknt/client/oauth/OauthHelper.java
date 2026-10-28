@@ -108,7 +108,7 @@ public class OauthHelper {
     public static Result<TokenResponse> getTokenResult(TokenRequest tokenRequest, String envTag) {
         // As the tokenClient will be reused frequently, we create it once and cache it.
         if (logger.isTraceEnabled())
-            logger.trace("tokenRequest = " + JsonMapper.toJson(tokenRequest));
+            logger.trace("Requesting OAuth token");
         if (tokenClient == null || clientConfig != ClientConfig.get()) {
             synchronized (OauthHelper.class) {
                 if (tokenClient == null || clientConfig != ClientConfig.get()) {
@@ -162,8 +162,7 @@ public class OauthHelper {
             }
             if (tokenRequest.getServerUrl() == null) {
                 if (logger.isTraceEnabled())
-                    logger.trace("serviceUrl is empty and could not discovery serviceUrl. tokenRequest = "
-                            + JsonMapper.toJson(tokenRequest));
+                    logger.trace("Token service URL is unavailable after discovery");
                 return Failure.of(new Status(OAUTH_SERVER_URL_ERROR, "token"));
             }
             if (logger.isTraceEnabled())
@@ -825,7 +824,7 @@ public class OauthHelper {
             params.put(ClientConfig.SCOPE, String.join(" ", request.getScope()));
         }
         if (logger.isTraceEnabled())
-            logger.trace("token request form data = " + JsonMapper.toJson(params));
+            logger.trace("OAuth token request form encoded");
         return ClientRequestComposerProvider.getFormDataString(params);
     }
 
@@ -833,7 +832,7 @@ public class OauthHelper {
         TokenResponse tokenResponse;
         Result<TokenResponse> result;
         if (logger.isTraceEnabled())
-            logger.trace("contentType = {} responseBody = {}", contentType, responseBody);
+            logger.trace("Processing OAuth token response");
         // only accept json format response so that can map to a TokenResponse,
         // otherwise escapes server's response and return to the client.
         if (!contentType.equals(ContentType.APPLICATION_JSON)) {
