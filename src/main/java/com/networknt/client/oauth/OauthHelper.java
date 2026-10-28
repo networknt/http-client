@@ -73,6 +73,8 @@ public class OauthHelper {
     private static final String OAUTH_SERVER_URL_ERROR = "ERR10056";
     public static final String STATUS_CLIENT_CREDENTIALS_TOKEN_NOT_AVAILABLE = "ERR10009";
 
+    // Provider bodies, request objects, Status descriptions and exception chains may contain credentials.
+    // Keep their contents out of diagnostics, including nested exception messages.
     private static final Logger logger = LoggerFactory.getLogger(OauthHelper.class);
 
     private static volatile ClientConfig clientConfig = ClientConfig.get();
@@ -107,8 +109,6 @@ public class OauthHelper {
      */
     public static Result<TokenResponse> getTokenResult(TokenRequest tokenRequest, String envTag) {
         // As the tokenClient will be reused frequently, we create it once and cache it.
-        if (logger.isTraceEnabled())
-            logger.trace("tokenRequest = " + JsonMapper.toJson(tokenRequest));
         if (tokenClient == null || clientConfig != ClientConfig.get()) {
             synchronized (OauthHelper.class) {
                 if (tokenClient == null || clientConfig != ClientConfig.get()) {
@@ -146,7 +146,7 @@ public class OauthHelper {
                         }
                         tokenClient = clientBuilder.build();
                     } catch (IOException e) {
-                        logger.error("Cannot create HttpClient:", e);
+                        logger.error("Cannot create OAuth HTTP client; exception type: {}", e.getClass().getSimpleName());
                         return Failure.of(new Status(TLS_TRUSTSTORE_ERROR));
                     }
                 }
@@ -157,17 +157,11 @@ public class OauthHelper {
             if (serverUrl == null) {
                 Cluster cluster = SingletonServiceFactory.getBean(Cluster.class);
                 tokenRequest.setServerUrl(cluster.serviceToUrl("https", tokenRequest.getServiceId(), envTag, null));
-                if (logger.isTraceEnabled())
-                    logger.trace("serviceUrl is null, discovered url = " + tokenRequest.getServerUrl());
             }
             if (tokenRequest.getServerUrl() == null) {
-                if (logger.isTraceEnabled())
-                    logger.trace("serviceUrl is empty and could not discovery serviceUrl. tokenRequest = "
-                            + JsonMapper.toJson(tokenRequest));
+                logger.trace("Token service URL is unavailable after discovery");
                 return Failure.of(new Status(OAUTH_SERVER_URL_ERROR, "token"));
             }
-            if (logger.isTraceEnabled())
-                logger.trace("token service url = " + serverUrl);
             IClientRequestComposable requestComposer = ClientRequestComposerProvider.getInstance().getComposer(
                     ClientRequestComposerProvider.ClientRequestComposers.CLIENT_CREDENTIAL_REQUEST_COMPOSER);
             final HttpRequest request = requestComposer.composeClientRequest(tokenRequest);
@@ -177,7 +171,7 @@ public class OauthHelper {
             HttpHeaders headers = response.thenApply(HttpResponse::headers).get();
             return handleResponse(getContentTypeHeaders(headers), body);
         } catch (Exception e) {
-            logger.error("Exception:", e);
+            logger.error("OAuth request failed; exception type: {}", e.getClass().getSimpleName());
             return Failure.of(new Status(ESTABLISH_CONNECTION_ERROR, tokenRequest.getServerUrl()));
         }
     }
@@ -245,7 +239,7 @@ public class OauthHelper {
                         }
                         signClient = clientBuilder.build();
                     } catch (IOException e) {
-                        logger.error("Cannot create HttpClient:", e);
+                        logger.error("Cannot create OAuth HTTP client; exception type: {}", e.getClass().getSimpleName());
                         return Failure.of(new Status(TLS_TRUSTSTORE_ERROR));
                     }
                 }
@@ -282,7 +276,7 @@ public class OauthHelper {
             HttpHeaders headers = response.thenApply(HttpResponse::headers).get();
             return handleResponse(getContentTypeHeaders(headers), body);
         } catch (Exception e) {
-            logger.error("Exception:", e);
+            logger.error("OAuth request failed; exception type: {}", e.getClass().getSimpleName());
             return Failure.of(new Status(ESTABLISH_CONNECTION_ERROR, signRequest.getServerUrl()));
         }
     }
@@ -347,7 +341,7 @@ public class OauthHelper {
                         }
                         tokenClient = clientBuilder.build();
                     } catch (IOException e) {
-                        logger.error("Cannot create HttpClient:", e);
+                        logger.error("Cannot create OAuth HTTP client; exception type: {}", e.getClass().getSimpleName());
                         return Failure.of(new Status(TLS_TRUSTSTORE_ERROR));
                     }
                 }
@@ -371,7 +365,7 @@ public class OauthHelper {
             HttpHeaders headers = response.thenApply(HttpResponse::headers).get();
             return handleResponse(getContentTypeHeaders(headers), body);
         } catch (Exception e) {
-            logger.error("IOException: ", e);
+            logger.error("OAuth token request failed; exception type: {}", e.getClass().getSimpleName());
             return Failure.of(new Status(ESTABLISH_CONNECTION_ERROR, tokenRequest.getServerUrl()));
         }
     }
@@ -437,7 +431,7 @@ public class OauthHelper {
                         }
                         tokenClient = clientBuilder.build();
                     } catch (IOException e) {
-                        logger.error("Cannot create HttpClient:", e);
+                        logger.error("Cannot create OAuth HTTP client; exception type: {}", e.getClass().getSimpleName());
                         return Failure.of(new Status(TLS_TRUSTSTORE_ERROR));
                     }
                 }
@@ -461,7 +455,7 @@ public class OauthHelper {
             HttpHeaders headers = response.thenApply(HttpResponse::headers).get();
             return handleResponse(getContentTypeHeaders(headers), body);
         } catch (Exception e) {
-            logger.error("IOException: ", e);
+            logger.error("OAuth token request failed; exception type: {}", e.getClass().getSimpleName());
             return Failure.of(new Status(ESTABLISH_CONNECTION_ERROR, tokenRequest.getServerUrl()));
         }
     }
@@ -477,8 +471,6 @@ public class OauthHelper {
      *                         fails.
      */
     public static String getKey(KeyRequest keyRequest) throws ClientException {
-        if (logger.isDebugEnabled())
-            logger.debug("keyRequest = " + keyRequest.toString());
         return getKey(keyRequest, null);
     }
 
@@ -495,8 +487,6 @@ public class OauthHelper {
      */
     public static Result<String> getIntrospection(String token, IntrospectionRequest introspectionRequest)
             throws ClientException {
-        if (logger.isTraceEnabled())
-            logger.debug("introspectionRequest = " + introspectionRequest.toString());
         return getIntrospection(token, introspectionRequest, null);
     }
 
@@ -560,11 +550,11 @@ public class OauthHelper {
             HttpResponse<String> response = keyClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                     .get(ClientConfig.get().getRequest().getTimeout(), TimeUnit.MILLISECONDS);
             if(response.statusCode() >= 400) {
-                logger.error("Error getting key from OAuth server. Status: {}, Body: {}", response.statusCode(), response.body());
+                logger.error("Error getting key from OAuth server. HTTP status: {}", response.statusCode());
             }
             return response.body();
         } catch (Exception e) {
-            logger.error("Exception:", e);
+            logger.error("OAuth request failed; exception type: {}", e.getClass().getSimpleName());
             throw new ClientException(e);
         }
     }
@@ -622,7 +612,7 @@ public class OauthHelper {
                         }
                         introspectionClient = clientBuilder.build();
                     } catch (IOException e) {
-                        logger.error("Cannot create HttpClient:", e);
+                        logger.error("Cannot create OAuth HTTP client; exception type: {}", e.getClass().getSimpleName());
                         return Failure.of(new Status(TLS_TRUSTSTORE_ERROR));
                     }
                 }
@@ -647,10 +637,6 @@ public class OauthHelper {
                     .stream()
                     .map(e -> e.getKey() + "=" + URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8))
                     .collect(Collectors.joining("&"));
-            if (logger.isTraceEnabled())
-                logger.trace("form = " + form + " url = " + serverUrl + introspectionRequest.getUri() + " clientId = "
-                        + introspectionRequest.getClientId() + " clientSecret = "
-                        + introspectionRequest.getClientSecret());
             HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                     .timeout(Duration.ofMillis(ClientConfig.get().getRequest().getTimeout()))
                     .POST(HttpRequest.BodyPublishers.ofString(form))
@@ -666,11 +652,9 @@ public class OauthHelper {
             CompletableFuture<HttpResponse<String>> response = introspectionClient.sendAsync(request,
                     HttpResponse.BodyHandlers.ofString());
             String body = response.thenApply(HttpResponse::body).get();
-            if (logger.isTraceEnabled())
-                logger.trace("body = " + body);
             return Success.of(body);
         } catch (Exception e) {
-            logger.error("Exception:", e);
+            logger.error("OAuth request failed; exception type: {}", e.getClass().getSimpleName());
             throw new ClientException(e);
         }
     }
@@ -733,7 +717,7 @@ public class OauthHelper {
                         }
                         derefClient = clientBuilder.build();
                     } catch (IOException e) {
-                        logger.error("Cannot create HttpClient:", e);
+                        logger.error("Cannot create OAuth HTTP client; exception type: {}", e.getClass().getSimpleName());
                         throw new ClientException(e);
                     }
                 }
@@ -763,7 +747,7 @@ public class OauthHelper {
             return response.thenApply(HttpResponse::body).get(ClientConfig.get().getRequest().getTimeout(),
                     TimeUnit.MILLISECONDS);
         } catch (Exception e) {
-            logger.error("Exception:", e);
+            logger.error("OAuth request failed; exception type: {}", e.getClass().getSimpleName());
             throw new ClientException(e);
         }
     }
@@ -824,16 +808,13 @@ public class OauthHelper {
         if (request.getScope() != null) {
             params.put(ClientConfig.SCOPE, String.join(" ", request.getScope()));
         }
-        if (logger.isTraceEnabled())
-            logger.trace("token request form data = " + JsonMapper.toJson(params));
         return ClientRequestComposerProvider.getFormDataString(params);
     }
 
     private static Result<TokenResponse> handleResponse(ContentType contentType, String responseBody) {
         TokenResponse tokenResponse;
         Result<TokenResponse> result;
-        if (logger.isTraceEnabled())
-            logger.trace("contentType = {} responseBody = {}", contentType, responseBody);
+        logger.trace("OAuth token response content type: {}", contentType);
         // only accept json format response so that can map to a TokenResponse,
         // otherwise escapes server's response and return to the client.
         if (!contentType.equals(ContentType.APPLICATION_JSON)) {
@@ -843,7 +824,11 @@ public class OauthHelper {
             tokenResponse = JsonMapper.fromJson(responseBody, TokenResponse.class);
             // sometimes, the token response contains an error status instead of the access
             // token.
-            if (tokenResponse != null && tokenResponse.getAccessToken() != null) {
+            if (tokenResponse == null) {
+                logger.error("OAuth token response contained JSON null");
+                return Failure.of(new Status(GET_TOKEN_ERROR, "no auth server response"));
+            }
+            if (tokenResponse.getAccessToken() != null) {
                 result = Success.of(tokenResponse);
             } else {
                 result = Failure.of(new Status(tokenResponse.getStatusCode(), tokenResponse.getCode(),
@@ -851,7 +836,7 @@ public class OauthHelper {
             }
         } else {
             result = Failure.of(new Status(GET_TOKEN_ERROR, "no auth server response"));
-            logger.error("Error in token retrieval, response = {}", responseBody);
+            logger.error("OAuth token response was empty");
         }
         return result;
     }
@@ -955,10 +940,10 @@ public class OauthHelper {
                     Result<Jwt> result = getCCTokenRemotely(jwt);
                     succeeded = result.isSuccess();
                     if (result.isFailure()) {
-                        logger.error("Async retrieve token error with status: {}", result.getError().toString());
+                        logger.error("Async token retrieval failed with HTTP status: {}", result.getError().getStatusCode());
                     }
                 } catch (RuntimeException e) {
-                    logger.error("Async token refresh failed", e);
+                    logger.error("Async token refresh failed; exception type: {}", e.getClass().getSimpleName());
                 } finally {
                     synchronized (jwt) {
                         jwt.setEarlyRetryTimeout(succeeded ? 0
@@ -990,13 +975,12 @@ public class OauthHelper {
         TokenRequest tokenRequest = new ClientCredentialsRequest(jwt.getAuthServerConfig());
         // scopes at this point is may not be set yet when issuing a new token.
         setScope(tokenRequest, jwt);
-        logger.trace("TokenRequest = {}", JsonMapper.toJson(tokenRequest));
         Result<TokenResponse> result = OauthHelper.getTokenResult(tokenRequest);
         if (result.isSuccess()) {
             TokenResponse tokenResponse = result.getResult();
             return updateJwtWithTokenResponse(jwt, tokenResponse);
         } else {
-            logger.info("Get client credentials token fail with status: {}", result.getError().toString());
+            logger.info("Client credentials token retrieval failed with HTTP status: {}", result.getError().getStatusCode());
             return Failure.of(result.getError());
         }
     }
@@ -1007,7 +991,7 @@ public class OauthHelper {
         try {
             expiry = getJwtExp(tokenResponse.getAccessToken());
         } catch (JsonProcessingException | IllegalArgumentException e) {
-            logger.error("Error parsing JWT token body and retrieving exp claim", e);
+            logger.error("Error parsing JWT token body and retrieving exp claim; exception type: {}", e.getClass().getSimpleName());
             return Failure.of(new Status(GET_TOKEN_ERROR, "Error parsing JWT token body and retrieving exp claim"));
         }
         synchronized (jwt) {
