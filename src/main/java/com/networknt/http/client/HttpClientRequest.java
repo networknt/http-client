@@ -4,6 +4,7 @@ import com.networknt.client.ClientConfig;
 import com.networknt.client.oauth.Jwt;
 import com.networknt.client.oauth.TokenManager;
 import com.networknt.config.Config;
+import com.networknt.config.PasswordChars;
 import com.networknt.config.TlsUtil;
 import com.networknt.http.client.ssl.ClientX509ExtendedTrustManager;
 import com.networknt.http.client.ssl.CompositeX509TrustManager;
@@ -381,10 +382,15 @@ public class HttpClientRequest {
                             if (keyPass == null) {
                                 logger.error("Cannot load the config: " + KEY_PASS + " from client.yml");
                             }
-                            KeyStore keyStore = TlsUtil.loadKeyStore(keyStoreName, keyStorePass.toCharArray());
+                            KeyStore keyStore;
+                            try (PasswordChars password = PasswordChars.required(keyStorePass)) {
+                                keyStore = TlsUtil.loadKeyStore(keyStoreName, password.value());
+                            }
                             KeyManagerFactory keyManagerFactory = KeyManagerFactory
                                     .getInstance(KeyManagerFactory.getDefaultAlgorithm());
-                            keyManagerFactory.init(keyStore, keyPass.toCharArray());
+                            try (PasswordChars password = PasswordChars.required(keyPass)) {
+                                keyManagerFactory.init(keyStore, password.value());
+                            }
                             keyManagers = keyManagerFactory.getKeyManagers();
                         }
                     }
@@ -412,7 +418,10 @@ public class HttpClientRequest {
                         if (logger.isInfoEnabled())
                             logger.info("Loading trust store from config at {}", Encode.forJava(trustStoreName));
                         if (trustStoreName != null && trustStorePass != null) {
-                            KeyStore trustStore = TlsUtil.loadKeyStore(trustStoreName, trustStorePass.toCharArray());
+                            KeyStore trustStore;
+                            try (PasswordChars password = PasswordChars.required(trustStorePass)) {
+                                trustStore = TlsUtil.loadKeyStore(trustStoreName, password.value());
+                            }
                             TrustManagerFactory trustManagerFactory = TrustManagerFactory
                                     .getInstance(KeyManagerFactory.getDefaultAlgorithm());
                             trustManagerFactory.init(trustStore);
@@ -508,8 +517,9 @@ public class HttpClientRequest {
             type = KeyStore.getDefaultType();
         }
         KeyStore trustStore = KeyStore.getInstance(type, Security.getProvider("SUN"));
-        try (InputStream is = Files.newInputStream(location)) {
-            trustStore.load(is, password == null ? null : password.toCharArray());
+        try (InputStream is = Files.newInputStream(location);
+             PasswordChars chars = PasswordChars.copyOf(password)) {
+            trustStore.load(is, chars.value());
             logger.info("JDK default trust store loaded from : {} .", location);
         }
         TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX");
