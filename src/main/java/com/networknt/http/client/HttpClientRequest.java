@@ -381,10 +381,22 @@ public class HttpClientRequest {
                             if (keyPass == null) {
                                 logger.error("Cannot load the config: " + KEY_PASS + " from client.yml");
                             }
-                            KeyStore keyStore = TlsUtil.loadKeyStore(keyStoreName, keyStorePass.toCharArray());
+                            KeyStore keyStore;
+                            char[] storePassword = keyStorePass.toCharArray();
+                            try {
+                                keyStore = TlsUtil.loadKeyStore(keyStoreName, storePassword);
+                            } finally {
+                                Arrays.fill(storePassword, '\0');
+                            }
                             KeyManagerFactory keyManagerFactory = KeyManagerFactory
                                     .getInstance(KeyManagerFactory.getDefaultAlgorithm());
-                            keyManagerFactory.init(keyStore, keyPass.toCharArray());
+                            // Provider compatibility assumes init consumes or copies this array before returning.
+                            char[] keyPassword = keyPass.toCharArray();
+                            try {
+                                keyManagerFactory.init(keyStore, keyPassword);
+                            } finally {
+                                Arrays.fill(keyPassword, '\0');
+                            }
                             keyManagers = keyManagerFactory.getKeyManagers();
                         }
                     }
@@ -412,7 +424,13 @@ public class HttpClientRequest {
                         if (logger.isInfoEnabled())
                             logger.info("Loading trust store from config at {}", Encode.forJava(trustStoreName));
                         if (trustStoreName != null && trustStorePass != null) {
-                            KeyStore trustStore = TlsUtil.loadKeyStore(trustStoreName, trustStorePass.toCharArray());
+                            KeyStore trustStore;
+                            char[] trustPassword = trustStorePass.toCharArray();
+                            try {
+                                trustStore = TlsUtil.loadKeyStore(trustStoreName, trustPassword);
+                            } finally {
+                                Arrays.fill(trustPassword, '\0');
+                            }
                             TrustManagerFactory trustManagerFactory = TrustManagerFactory
                                     .getInstance(KeyManagerFactory.getDefaultAlgorithm());
                             trustManagerFactory.init(trustStore);
@@ -509,8 +527,13 @@ public class HttpClientRequest {
         }
         KeyStore trustStore = KeyStore.getInstance(type, Security.getProvider("SUN"));
         try (InputStream is = Files.newInputStream(location)) {
-            trustStore.load(is, password == null ? null : password.toCharArray());
-            logger.info("JDK default trust store loaded from : {} .", location);
+            char[] chars = password == null ? null : password.toCharArray();
+            try {
+                trustStore.load(is, chars);
+                logger.info("JDK default trust store loaded from : {} .", location);
+            } finally {
+                if (chars != null) Arrays.fill(chars, '\0');
+            }
         }
         TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("PKIX");
         trustManagerFactory.init(trustStore);
