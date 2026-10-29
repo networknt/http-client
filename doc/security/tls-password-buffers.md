@@ -10,8 +10,8 @@ memory-exposure hardening, not evidence of a remote exploit.
 ## Change
 
 The client keystore password, private-key password, configured truststore
-password and default/JDK truststore password now use the framework's
-`com.networknt.config.PasswordChars` owner. Each owned copy is cleared after its
+password and default/JDK truststore password now use explicitly owned temporary
+arrays, cleared with JDK Arrays.fill in finally blocks. Each copy is cleared after its
 keystore load or key-manager initialization, including exceptions. The default
 truststore still receives null when no password is supplied. A missing required
 private-key password retains its previous failure behavior after the store load.
@@ -24,28 +24,45 @@ may remain in memory. A scanner may still flag the retained String inputs; this
 change does not promise complete heap erasure. Protect process memory, dumps,
 diagnostics and configuration/secret access, and rotate exposed credentials.
 
-## Matching framework prerequisite
+## Dependency and provider compatibility
 
-`config` is a provided dependency. Consumers must supply a matching framework
-artifact containing PasswordChars; replacing only http-client while retaining an
-older config artifact is insufficient. The helper is included in merged light-4j
-master `62b06f43d7ae505e68b8cae5ebf60b70946443f8` (3.0.0-SNAPSHOT) and 2.x
-`05a86a5d9510f704168d58f3817d9a2514ae178c` (2.4.2-SNAPSHOT). Local validation
-built config/client-config prerequisites from those exact merged sources.
+The cleanup is self-contained and does not depend on PasswordChars or any other
+new class in the provided config jar. It adds no new minimum config artifact
+requirement; the existing project dependency baseline still applies. A compatibility
+probe removes PasswordChars from a copied config jar: the revised TLS loader
+compiles on both branches, while the previous PR heads fail on the missing helper.
+This checks the introduced helper dependency, not all historical config versions.
 
-From the matching light-4j source, prepare local prerequisites with
-`mvn -pl config,client-config -am install -DskipTests`. This installs artifacts
-locally and does not publish a release.
+The cleanup assumes KeyStore.load and KeyManagerFactory.init consume or copy
+the caller's password array before returning. Local tests exercise JDK JKS and
+default key/trust-manager providers. A provider retaining the caller's array for
+later use would see zeros and is not covered by this qualification. PKCS11, FIPS,
+builder-based or other custom providers need provider-specific ownership and
+lifecycle qualification before adopting early clearing. No general JCA ownership
+guarantee or custom-provider compatibility is claimed.
 
 ## Verification
 
-HttpClientTlsPasswordTest generates synthetic local JKS key/trust stores and
+HttpClientTlsPasswordTest copies checked-in synthetic JKS fixtures and
 observes arrays handed to real keystore loaders and key-manager initialization.
 It covers successful initialization/cache reuse, store/key-manager failures,
 system-property precedence, required-password failure and nullable default-store
-passwords, and checks borrowed inputs remain unchanged. Replacing the repaired
-loaders with their original implementations causes nine of the ten TLS tests to
-fail on uncleared arrays; the null-password case correctly has no array to erase.
+passwords, and checks borrowed inputs remain unchanged. The full context path
+with loadDefaultTrustStore enabled observes all four copies and checks that the
+composite trust manager includes issuers from both configured and default stores.
+Default-store failure through the full context is covered too.
+
+JUnit isolated, same-thread execution and a system-properties resource lock
+prevent these tests from overlapping other tests. An AutoClose state guard is
+registered before mutation, closes static mocks on demand, and independently
+attempts every cache/property restoration even when another cleanup fails.
+A regression injects a cleanup failure and verifies that the remaining globals
+and mock registrations are restored. Fixture setup spawns no keytool process.
+See the fixture README for intentionally public test-key/password details.
+
+As a negative control, substituting the original TLS loaders produced nine
+uncleared-buffer failures in the original ten ownership tests; the null-password
+case correctly had no array to erase.
 
 The focused run also includes the existing OAuth logging regressions:
 
