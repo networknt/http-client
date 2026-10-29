@@ -2,7 +2,14 @@ package com.networknt.http.client;
 
 import com.networknt.client.ClientConfig;
 import com.networknt.config.TlsUtil;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AutoClose;
+import org.junit.jupiter.api.parallel.Isolated;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.Resources;
+import org.junit.jupiter.api.function.Executable;
+import com.networknt.http.client.ssl.CompositeX509TrustManager;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,6 +17,8 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedStatic;
 
 import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.TrustManager;
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
 import java.io.InputStream;
@@ -22,13 +31,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.networknt.http.client.HttpClientRequest.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+@Isolated
+@Execution(ExecutionMode.SAME_THREAD)
+@ResourceLock(Resources.SYSTEM_PROPERTIES)
 class HttpClientTlsPasswordTest {
     private static final String STORE_PASSWORD = "store-canary";
     private static final String KEY_PASSWORD = "key-canary";
@@ -36,54 +48,31 @@ class HttpClientTlsPasswordTest {
             TRUST_STORE_PROPERTY, TRUST_STORE_PASSWORD_PROPERTY, TRUST_STORE_TYPE_PROPERTY};
     private static Path keyStorePath;
     private static Path trustStorePath;
-    private final Map<String, String> previousProperties = new HashMap<>();
     private final Map<String, Object> tls = new HashMap<>();
     private final List<char[]> captured = new ArrayList<>();
     private Field configField;
     private Field contextField;
-    private Object previousConfig;
-    private Object previousContext;
-    private MockedStatic<ClientConfig> configs;
+    @AutoClose private StateGuard state;
 
     @BeforeAll
-    static void createSyntheticStores(@TempDir Path directory) throws Exception {
+    static void copySyntheticStores(@TempDir Path directory) throws Exception {
         keyStorePath = directory.resolve("client.jks");
         trustStorePath = directory.resolve("trust.jks");
-        Path output = directory.resolve("keytool.log");
-        Process keytool = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "keytool").toString(),
-                "-genkeypair", "-alias", "fixture", "-keyalg", "EC", "-groupname", "secp256r1",
-                "-storetype", "JKS", "-keystore", keyStorePath.toString(), "-storepass", STORE_PASSWORD,
-                "-keypass", KEY_PASSWORD, "-dname", "CN=local.test", "-validity", "1", "-noprompt")
-                .redirectErrorStream(true).redirectOutput(output.toFile()).start();
-        if (!keytool.waitFor(30, TimeUnit.SECONDS)) {
-            keytool.destroyForcibly();
-            fail("Synthetic fixture keytool timed out");
-        }
-        assertEquals(0, keytool.exitValue(), Files.readString(output));
-        KeyStore keys = KeyStore.getInstance("JKS");
-        try (InputStream input = Files.newInputStream(keyStorePath)) {
-            keys.load(input, STORE_PASSWORD.toCharArray());
-        }
-        KeyStore trust = KeyStore.getInstance("JKS");
-        trust.load(null, STORE_PASSWORD.toCharArray());
-        trust.setCertificateEntry("fixture", keys.getCertificate("fixture"));
-        try (var stream = Files.newOutputStream(trustStorePath)) {
-            trust.store(stream, STORE_PASSWORD.toCharArray());
+        for (String name : new String[]{"client.jks", "trust.jks"}) {
+            try (InputStream input = HttpClientTlsPasswordTest.class.getResourceAsStream("/tls-password-fixtures/" + name)) {
+                assertNotNull(input, "Missing synthetic fixture " + name);
+                Files.copy(input, directory.resolve(name));
+            }
         }
     }
 
     @BeforeEach
     void isolateConfigurationCacheAndProperties() throws Exception {
-        configField = HttpClientRequest.class.getDeclaredField("clientConfig");
-        contextField = HttpClientRequest.class.getDeclaredField("sslContext");
-        configField.setAccessible(true);
-        contextField.setAccessible(true);
-        previousConfig = configField.get(null);
-        previousContext = contextField.get(null);
-        for (String name : PROPERTIES) {
-            previousProperties.put(name, System.getProperty(name));
-            System.clearProperty(name);
-        }
+        // Register ownership before any mutation; @AutoClose also runs after setup failures.
+        state = new StateGuard();
+        configField = state.configField;
+        contextField = state.contextField;
+        for (String name : PROPERTIES) System.clearProperty(name);
         tls.put(LOAD_KEY_STORE, true);
         tls.put(KEY_STORE, keyStorePath.toString());
         tls.put(KEY_STORE_PASS, STORE_PASSWORD);
@@ -97,20 +86,52 @@ class HttpClientTlsPasswordTest {
         when(config.getTlsConfig()).thenReturn(tls);
         configField.set(null, config);
         contextField.set(null, null);
-        configs = mockStatic(ClientConfig.class);
+        var configs = tracked(mockStatic(ClientConfig.class));
         configs.when(ClientConfig::get).thenReturn(config);
     }
 
-    @AfterEach
-    void restoreSharedState() throws Exception {
-        if (configs != null) configs.close();
-        configField.set(null, previousConfig);
-        contextField.set(null, previousContext);
-        for (String name : PROPERTIES) {
-            String previous = previousProperties.get(name);
-            if (previous == null) System.clearProperty(name);
-            else System.setProperty(name, previous);
+    private static final class StateGuard implements AutoCloseable {
+        final Field configField;
+        final Field contextField;
+        final Object config;
+        final Object context;
+        final Map<String, String> properties = new HashMap<>();
+        final List<MockedStatic<?>> mocks = new ArrayList<>();
+        boolean closed;
+
+        StateGuard() throws Exception {
+            configField = HttpClientRequest.class.getDeclaredField("clientConfig");
+            contextField = HttpClientRequest.class.getDeclaredField("sslContext");
+            configField.setAccessible(true);
+            contextField.setAccessible(true);
+            config = configField.get(null);
+            context = contextField.get(null);
+            for (String name : PROPERTIES) properties.put(name, System.getProperty(name));
         }
+
+        @Override public void close() {
+            if (closed) return;
+            closed = true;
+            List<Executable> restore = new ArrayList<>();
+            for (int i = mocks.size() - 1; i >= 0; i--) {
+                var mock = mocks.get(i);
+                restore.add(mock::closeOnDemand);
+            }
+            restore.add(() -> configField.set(null, config));
+            restore.add(() -> contextField.set(null, context));
+            for (String name : PROPERTIES) restore.add(() -> {
+                String value = properties.get(name);
+                if (value == null) System.clearProperty(name);
+                else System.setProperty(name, value);
+            });
+            // Run every restoration even if closing a mock or restoring another value fails.
+            assertAll("Restore shared TLS test state", restore);
+        }
+    }
+
+    private <T> MockedStatic<T> tracked(MockedStatic<T> mock) {
+        state.mocks.add(mock);
+        return mock;
     }
 
     @Test
@@ -227,8 +248,63 @@ class HttpClientTlsPasswordTest {
         assertNull(System.getProperty(TRUST_STORE_PASSWORD_PROPERTY));
     }
 
+    @Test
+    void fullContextCombinesDefaultAndConfiguredTrustAndClearsAllFourCopies() throws Exception {
+        tls.put(LOAD_DEFAULT_TRUST, true);
+        tls.put(DEFAULT_CERT_PASS, STORE_PASSWORD);
+        SSLContext context = spy(SSLContext.getInstance("TLSv1.3"));
+        AtomicReference<TrustManager[]> selected = new AtomicReference<>();
+        doAnswer(invocation -> {
+            selected.set(invocation.getArgument(1));
+            return invocation.callRealMethod();
+        }).when(context).init(any(KeyManager[].class), any(TrustManager[].class), isNull());
+        Map<String, Object> borrowed = new HashMap<>(tls);
+        try (var stores = observeStoreLoads(); var factories = observeKeyManager();
+             var defaults = observeDefaultStoreLoads();
+             var contexts = tracked(mockStatic(SSLContext.class, CALLS_REAL_METHODS))) {
+            contexts.when(() -> SSLContext.getInstance("TLSv1.3")).thenReturn(context);
+            assertSame(context, createSSLContext());
+        }
+        assertCleared(4);
+        assertEquals(borrowed, tls);
+        assertEquals(1, selected.get().length);
+        var composite = assertInstanceOf(CompositeX509TrustManager.class, selected.get()[0]);
+        assertEquals(2, composite.getAcceptedIssuers().length, "Both trust stores contribute an issuer");
+    }
+
+    @Test
+    void defaultStoreFailureInsideFullContextClearsBothTrustCopies() throws Exception {
+        tls.put(LOAD_KEY_STORE, false);
+        tls.put(LOAD_DEFAULT_TRUST, true);
+        tls.put(DEFAULT_CERT_PASS, "incorrect-default-canary");
+        try (var stores = observeStoreLoads(); var defaults = observeDefaultStoreLoads()) {
+            assertThrows(IOException.class, HttpClientRequest::createSSLContext);
+        }
+        assertCleared(2);
+        assertNull(contextField.get(null));
+    }
+
+    @Test
+    void stateGuardRestoresGlobalsEvenWhenOneMockCleanupThrows() throws Exception {
+        try (var guard = new StateGuard()) {
+            guard.mocks.add(mockStatic(TlsUtil.class));
+            MockedStatic<?> failing = mock(MockedStatic.class);
+            doThrow(new IllegalStateException("synthetic cleanup failure")).when(failing).closeOnDemand();
+            guard.mocks.add(failing);
+            for (String name : PROPERTIES) System.setProperty(name, "changed-for-cleanup-test");
+            configField.set(null, null);
+            contextField.set(null, SSLContext.getInstance("TLSv1.3"));
+            assertThrows(AssertionError.class, guard::close);
+            assertSame(guard.config, configField.get(null));
+            assertSame(guard.context, contextField.get(null));
+            for (String name : PROPERTIES) assertEquals(guard.properties.get(name), System.getProperty(name));
+            // Opening the same static mock again proves the original registration was released.
+            try (var released = mockStatic(TlsUtil.class)) { assertNotNull(released); }
+        }
+    }
+
     private MockedStatic<TlsUtil> observeStoreLoads() {
-        var stores = mockStatic(TlsUtil.class, CALLS_REAL_METHODS);
+        var stores = tracked(mockStatic(TlsUtil.class, CALLS_REAL_METHODS));
         stores.when(() -> TlsUtil.loadKeyStore(anyString(), any(char[].class))).thenAnswer(invocation -> {
             char[] password = invocation.getArgument(1);
             captured.add(password);
@@ -250,12 +326,12 @@ class HttpClientTlsPasswordTest {
             assertArrayEquals(((String) tls.get(KEY_PASS)).toCharArray(), password);
             return invocation.callRealMethod();
         }).when(factory).init(any(KeyStore.class), any(char[].class));
-        var factories = mockStatic(KeyManagerFactory.class, CALLS_REAL_METHODS);
+        var factories = tracked(mockStatic(KeyManagerFactory.class, CALLS_REAL_METHODS));
         factories.when(() -> KeyManagerFactory.getInstance(algorithm)).thenReturn(factory);
         return factories;
     }
 
-    private void assertDefaultLoad(boolean fail) throws Exception {
+    private MockedStatic<KeyStore> observeDefaultStoreLoads() throws Exception {
         System.setProperty(TRUST_STORE_PROPERTY, trustStorePath.toString());
         System.setProperty(TRUST_STORE_TYPE_PROPERTY, "JKS");
         KeyStore store = spy(KeyStore.getInstance("JKS", Security.getProvider("SUN")));
@@ -268,8 +344,13 @@ class HttpClientTlsPasswordTest {
             else assertArrayEquals(expected.toCharArray(), password);
             return invocation.callRealMethod();
         }).when(store).load(any(InputStream.class), nullable(char[].class));
-        try (var stores = mockStatic(KeyStore.class, CALLS_REAL_METHODS)) {
-            stores.when(() -> KeyStore.getInstance("JKS", Security.getProvider("SUN"))).thenReturn(store);
+        var stores = tracked(mockStatic(KeyStore.class, CALLS_REAL_METHODS));
+        stores.when(() -> KeyStore.getInstance("JKS", Security.getProvider("SUN"))).thenReturn(store);
+        return stores;
+    }
+
+    private void assertDefaultLoad(boolean fail) throws Exception {
+        try (var stores = observeDefaultStoreLoads()) {
             if (fail) assertThrows(Exception.class, HttpClientRequest::loadDefaultTrustStore);
             else assertTrue(loadDefaultTrustStore().length > 0);
         }
