@@ -80,7 +80,7 @@
         <version.slf4j>2.0.7</version.slf4j>
         <version.common-lang3>3.18.0</version.common-lang3>
         <version.encoder>1.6.0</version.encoder>
-        <version.jackson>3.2.4</version.jackson>
+        <version.jackson>3.1.8</version.jackson>
         <version.logback>1.6.6</version.logback>
         <version.junit>6.1.3</version.junit>
         <version.mockito>5.24.0</version.mockito>
