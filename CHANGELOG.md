@@ -1,3 +1,17 @@
+## [2.5.0](https://github.com/networknt/http-client/tree/2.5.0) (2026-11-04)
+
+**Commits:**
+
+- upgrade to version 2.5.0 before release in 2.x branch ([4a4faf5](https://github.com/networknt/http-client/commit/4a4faf54d46db714408b732334c74d0f651b82c2)) (by Steve Hu)
+- upgrade to version 2.5.0-SNAPSHOT after release in 2.x branch ([186b8dd](https://github.com/networknt/http-client/commit/186b8ddbfb2d02d5d38cbdc4bfdd931a93ad1130)) (by Steve Hu)
+- upgrade encoder to 1.6.0 from 1.5.0 ([79fc6eb](https://github.com/networknt/http-client/commit/79fc6eb07903e4c5ef626f82c7e87d11b685a792)) (by Steve Hu)
+- upgrade jackson to 2.22.4 from 2.22.3 ([aa07bd3](https://github.com/networknt/http-client/commit/aa07bd3298ae4ba0b92773dd6d30c96407dadd75)) (by Steve Hu)
+- upgrade logback to 1.6.6 from 1.6.5 ([fcf5beb](https://github.com/networknt/http-client/commit/fcf5bebd74aeb686734668c77e4b546b71e46a91)) (by Steve Hu)
+- \[2.x\] Clear owned TLS password buffers in HttpClientRequest (A20) (#66) ([a6504d1](https://github.com/networknt/http-client/commit/a6504d13c76fb019ceac70defc423505b221ed07)) (by Steve Hu)
+- fix(2.x): prevent credential and provider payload disclosure in OAuth logs (#63) ([35d1364](https://github.com/networknt/http-client/commit/35d1364ea01fb9ac0779d0bc3b68b56d312ac356)) (by Steve Hu)
+- upgrade maven-version to 2.23.0 from 2.22.0 ([031557f](https://github.com/networknt/http-client/commit/031557fec4e1d8e4978ba936a5def16c40ef54bf)) (by Steve Hu)
+- upgrade to version 2.4.2-SNAPSHOT after release in master branch ([c0b3a6b](https://github.com/networknt/http-client/commit/c0b3a6b12f81c8aa12f75d9c8b76f4fb6e49c793)) (by Steve Hu)
+
 ## [2.4.1](https://github.com/networknt/http-client/tree/2.4.1) (2026-10-11)
 
 **Commits:**
