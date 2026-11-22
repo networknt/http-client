@@ -1,3 +1,14 @@
+## [2.5.1](https://github.com/networknt/http-client/tree/2.5.1) (2026-11-21)
+
+**Commits:**
+
+- upgrade to version 2.5.1 before release in 2.x branch ([a6bc2e2](https://github.com/networknt/http-client/commit/a6bc2e29cad9528a996ccc8401a8b6deffba610f)) (by Steve Hu)
+- upgrade logback to 1.6.8 from 1.6.7 ([956936c](https://github.com/networknt/http-client/commit/956936c95dd5745c13f516388c1cc50af8814e12)) (by Steve Hu)
+- upgrade logback to 1.6.7 from 1.6.6 ([4e9ddf9](https://github.com/networknt/http-client/commit/4e9ddf9421d7596aaa2b5468adebd8a824d145e0)) (by Steve Hu)
+- upgrade maven-version to 2.25.2 from 2.23.0 ([9df2d85](https://github.com/networknt/http-client/commit/9df2d858e4a741b870cbca9f2259ee0aef9e0be1)) (by Steve Hu)
+- upgrade maven-surefire to 3.6.1 from 3.6.0 ([d810a00](https://github.com/networknt/http-client/commit/d810a006189ab3c40478d93f7d316bbd94dbee4d)) (by Steve Hu)
+- upgrade to version 2.5.1-SNAPSHOT after release in 2.x branch ([cc1a48e](https://github.com/networknt/http-client/commit/cc1a48e905f412e093d0af61636f357e37fe059a)) (by Steve Hu)
+
 ## [2.5.0](https://github.com/networknt/http-client/tree/2.5.0) (2026-11-04)
 
 **Commits:**
