@@ -1,11 +1,10 @@
 package com.networknt.http.client;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 
@@ -21,27 +20,32 @@ final class TlsPasswordFile {
             throw new IOException("Missing TLS password file path for " + property);
         }
 
-        byte[] bytes = new byte[MAX_BYTES + 1];
+        ByteBuffer bytes = ByteBuffer.allocateDirect(MAX_BYTES + 1);
         char[] chars = new char[MAX_BYTES];
         try {
-            int length;
-            try (InputStream input = Files.newInputStream(Path.of(file))) {
-                length = input.readNBytes(bytes, 0, bytes.length);
+            // A direct destination avoids the JDK's cached per-thread read buffer.
+            try (FileChannel channel = FileChannel.open(Path.of(file))) {
+                while (bytes.hasRemaining() && channel.read(bytes) != -1) {
+                    // Read up to the limit plus one byte to detect oversized files.
+                }
+            } catch (IOException | IllegalArgumentException | SecurityException e) {
+                throw new IOException("Unable to read TLS password file for " + property
+                        + " (" + e.getClass().getSimpleName() + ")");
             }
-            if (length > MAX_BYTES) {
-                throw new IOException("TLS password file exceeds size limit for " + property);
+            if (bytes.position() > MAX_BYTES) {
+                throw new IOException("TLS password file exceeds " + MAX_BYTES + " bytes for " + property);
             }
             CharBuffer decoded = CharBuffer.wrap(chars);
-            var decoder = StandardCharsets.UTF_8.newDecoder();
-            var result = decoder.decode(ByteBuffer.wrap(bytes, 0, length), decoded, true);
+            var result = StandardCharsets.UTF_8.newDecoder().decode(bytes.flip(), decoded, true);
             if (result.isError()) {
-                result.throwException();
+                throw new IOException("Invalid UTF-8 in TLS password file for " + property);
             }
             return Arrays.copyOf(chars, decoded.position());
-        } catch (IOException | IllegalArgumentException | SecurityException e) {
-            throw new IOException("Unable to read TLS password file for " + property);
         } finally {
-            Arrays.fill(bytes, (byte) 0);
+            bytes.clear();
+            while (bytes.hasRemaining()) {
+                bytes.put((byte) 0);
+            }
             Arrays.fill(chars, '\0');
         }
     }
