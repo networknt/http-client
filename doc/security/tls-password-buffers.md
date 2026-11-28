@@ -72,3 +72,25 @@ mvn -o clean test -Dtest=HttpClientTlsPasswordTest,OauthHelperLoggingTest
 
 This is local JVM/provider evidence, not a partner rescan, live endpoint test,
 production TLS qualification or deployment.
+
+
+## TLS password files
+
+Set the relevant JVM system property to the path of a protected, mounted secret
+file. The file must contain the exact UTF-8 password, with no added BOM or line
+ending, and must be at most 4096 bytes.
+
+| JVM system property | Credential |
+| --- | --- |
+| `networknt.http.client.keyStorePasswordFile` | Client keystore password |
+| `networknt.http.client.keyPasswordFile` | Client private-key password |
+| `networknt.http.client.trustStorePasswordFile` | Configured truststore password |
+| `networknt.http.client.defaultTrustStorePasswordFile` | Default/JDK truststore password |
+
+Each file property takes precedence over the corresponding legacy password input.
+For client keystores, a file password pairs with `javax.net.ssl.keyStore` when
+that store path is set. A selected password file that cannot be read or decoded
+fails TLS initialization. The loader clears its byte and character buffers.
+Remove the corresponding legacy password values from configuration and JVM
+properties to avoid retaining those Strings. Restart the application to pick up
+a rotated password file with the cached SSL context.

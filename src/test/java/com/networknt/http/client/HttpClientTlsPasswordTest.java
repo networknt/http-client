@@ -45,7 +45,9 @@ class HttpClientTlsPasswordTest {
     private static final String STORE_PASSWORD = "store-canary";
     private static final String KEY_PASSWORD = "key-canary";
     private static final String[] PROPERTIES = {KEY_STORE_PROPERTY, KEY_STORE_PASSWORD_PROPERTY,
-            TRUST_STORE_PROPERTY, TRUST_STORE_PASSWORD_PROPERTY, TRUST_STORE_TYPE_PROPERTY};
+            TRUST_STORE_PROPERTY, TRUST_STORE_PASSWORD_PROPERTY, TRUST_STORE_TYPE_PROPERTY,
+            KEY_STORE_PASSWORD_FILE, KEY_PASSWORD_FILE, TRUST_STORE_PASSWORD_FILE,
+            DEFAULT_TRUST_STORE_PASSWORD_FILE};
     private static Path keyStorePath;
     private static Path trustStorePath;
     private final Map<String, Object> tls = new HashMap<>();
@@ -246,6 +248,48 @@ class HttpClientTlsPasswordTest {
         assertNull(captured.getFirst());
         assertFalse(tls.containsKey(DEFAULT_CERT_PASS));
         assertNull(System.getProperty(TRUST_STORE_PASSWORD_PROPERTY));
+    }
+
+    @Test
+    void passwordFilesLoadAllFourCredentialsWithoutLegacyPasswords(@TempDir Path directory) throws Exception {
+        Path storePassword = Files.writeString(directory.resolve("store-password"), STORE_PASSWORD);
+        Path keyPassword = Files.writeString(directory.resolve("key-password"), KEY_PASSWORD);
+        System.setProperty(KEY_STORE_PASSWORD_FILE, storePassword.toString());
+        System.setProperty(KEY_PASSWORD_FILE, keyPassword.toString());
+        System.setProperty(TRUST_STORE_PASSWORD_FILE, storePassword.toString());
+        System.setProperty(DEFAULT_TRUST_STORE_PASSWORD_FILE, storePassword.toString());
+        System.setProperty(TRUST_STORE_PROPERTY, trustStorePath.toString());
+        System.setProperty(TRUST_STORE_TYPE_PROPERTY, "JKS");
+        tls.put(LOAD_DEFAULT_TRUST, true);
+        tls.remove(KEY_STORE_PASS);
+        tls.remove(KEY_PASS);
+        tls.remove(TRUST_STORE_PASS);
+
+        assertNotNull(createSSLContext().createSSLEngine());
+    }
+
+    @Test
+    void passwordFileRequiresBoundedUtf8AndPreservesWhitespace(@TempDir Path directory) throws Exception {
+        Path file = directory.resolve("password");
+        Files.writeString(file, " canary-λ\n");
+        assertArrayEquals(" canary-λ\n".toCharArray(), TlsPasswordFile.read(file.toString(), KEY_PASSWORD_FILE));
+        Files.write(file, new byte[]{(byte) 0xC3});
+        assertThrows(IOException.class, () -> TlsPasswordFile.read(file.toString(), KEY_PASSWORD_FILE));
+        Files.write(file, new byte[4097]);
+        assertThrows(IOException.class, () -> TlsPasswordFile.read(file.toString(), KEY_PASSWORD_FILE));
+    }
+
+    @Test
+    void invalidPasswordFileDoesNotFallBackAndCanBeRetried(@TempDir Path directory) throws Exception {
+        Path password = directory.resolve("store-password");
+        System.setProperty(KEY_STORE_PASSWORD_FILE, password.toString());
+        IOException failure = assertThrows(IOException.class, HttpClientRequest::createSSLContext);
+        assertTrue(failure.getMessage().contains(KEY_STORE_PASSWORD_FILE));
+        assertFalse(failure.getMessage().contains(password.toString()));
+        assertNull(contextField.get(null));
+
+        Files.writeString(password, STORE_PASSWORD);
+        assertNotNull(createSSLContext().createSSLEngine());
     }
 
     @Test
