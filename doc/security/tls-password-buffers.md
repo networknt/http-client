@@ -82,15 +82,21 @@ ending, and must be at most 4096 bytes.
 
 | JVM system property | Credential |
 | --- | --- |
-| `networknt.http.client.keyStorePasswordFile` | Client keystore password |
+| `networknt.http.client.keyStorePasswordFile` | Client keystore configured in `client.yml` |
+| `networknt.http.client.systemKeyStorePasswordFile` | Client keystore selected by `javax.net.ssl.keyStore` |
 | `networknt.http.client.keyPasswordFile` | Client private-key password |
 | `networknt.http.client.trustStorePasswordFile` | Configured truststore password |
 | `networknt.http.client.defaultTrustStorePasswordFile` | Default/JDK truststore password |
 
-Each file property takes precedence over the corresponding legacy password input.
-For client keystores, a file password pairs with `javax.net.ssl.keyStore` when
-that store path is set. A selected password file that cannot be read or decoded
-fails TLS initialization. The loader clears its byte and character buffers.
-Remove the corresponding legacy password values from configuration and JVM
-properties to avoid retaining those Strings. Restart the application to pick up
-a rotated password file with the cached SSL context.
+A complete legacy JVM keystore pair still takes precedence over the keystore
+configured in `client.yml`. Set `systemKeyStorePasswordFile` to use a file for the
+JVM keystore password. The `keyStorePasswordFile` property applies only to the
+keystore named in `client.yml`.
+
+A selected password file that cannot be read or decoded fails TLS initialization
+and prevents the HTTPS client from being built. The loader reads directly into
+an owned off-heap buffer and wipes that buffer and its character arrays.
+Remove superseded passwords from `client.yml`. Before removing JSSE password
+properties, check every default SSLContext consumer in the JVM, since those
+properties also configure their stores. Restart the application to pick up a
+rotated password file with the cached SSL context.
