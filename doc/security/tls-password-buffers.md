@@ -72,3 +72,31 @@ mvn -o clean test -Dtest=HttpClientTlsPasswordTest,OauthHelperLoggingTest
 
 This is local JVM/provider evidence, not a partner rescan, live endpoint test,
 production TLS qualification or deployment.
+
+
+## TLS password files
+
+Set the relevant JVM system property to the path of a protected, mounted secret
+file. The file must contain the exact UTF-8 password, with no added BOM or line
+ending, and must be at most 4096 bytes.
+
+| JVM system property | Credential |
+| --- | --- |
+| `networknt.http.client.keyStorePasswordFile` | Client keystore configured in `client.yml` |
+| `networknt.http.client.systemKeyStorePasswordFile` | Client keystore selected by `javax.net.ssl.keyStore` |
+| `networknt.http.client.keyPasswordFile` | Client private-key password |
+| `networknt.http.client.trustStorePasswordFile` | Configured truststore password |
+| `networknt.http.client.defaultTrustStorePasswordFile` | Default/JDK truststore password |
+
+A complete legacy JVM keystore pair still takes precedence over the keystore
+configured in `client.yml`. Set `systemKeyStorePasswordFile` to use a file for the
+JVM keystore password. The `keyStorePasswordFile` property applies only to the
+keystore named in `client.yml`.
+
+A selected password file that cannot be read or decoded fails TLS initialization
+and prevents the HTTPS client from being built. The loader reads directly into
+an owned off-heap buffer and wipes that buffer and its character arrays.
+Remove superseded passwords from `client.yml`. Before removing JSSE password
+properties, check every default SSLContext consumer in the JVM, since those
+properties also configure their stores. Restart the application to pick up a
+rotated password file with the cached SSL context.

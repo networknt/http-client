@@ -18,6 +18,7 @@ import javax.net.ssl.*;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.*;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -37,7 +38,9 @@ public class HttpClientRequest {
 
     private static final Logger logger = LoggerFactory.getLogger(HttpClientRequest.class);
     private static volatile ClientConfig clientConfig = ClientConfig.get();
-    private static volatile SSLContext sslContext = null;
+    private static volatile CachedTlsContext tlsContext;
+
+    private record CachedTlsContext(ClientConfig config, SSLContext context) {}
     HttpClient httpClient;
 
     public static final String TLS = "tls";
@@ -56,6 +59,12 @@ public class HttpClientRequest {
     static final String TRUST_STORE_PROPERTY = "javax.net.ssl.trustStore";
     static final String TRUST_STORE_PASSWORD_PROPERTY = "javax.net.ssl.trustStorePassword";
     static final String TRUST_STORE_TYPE_PROPERTY = "javax.net.ssl.trustStoreType";
+    static final String KEY_STORE_PASSWORD_FILE = "networknt.http.client.keyStorePasswordFile";
+    static final String SYSTEM_KEY_STORE_PASSWORD_FILE = "networknt.http.client.systemKeyStorePasswordFile";
+    static final String KEY_PASSWORD_FILE = "networknt.http.client.keyPasswordFile";
+    static final String TRUST_STORE_PASSWORD_FILE = "networknt.http.client.trustStorePasswordFile";
+    static final String DEFAULT_TRUST_STORE_PASSWORD_FILE =
+            "networknt.http.client.defaultTrustStorePasswordFile";
     private final TokenManager tokenManager = TokenManager.getInstance();
     private String proxyHost = null;
     private int proxyPort;
@@ -105,7 +114,7 @@ public class HttpClientRequest {
             try {
                 clientBuilder.sslContext(createSSLContext());
             } catch (IOException e) {
-                logger.error("cannot initial http client:" + e);
+                throw new UncheckedIOException("Unable to initialize HTTPS client", e);
             }
         }
         if (clientConfig.getRequestEnableHttp2()) {
@@ -346,135 +355,159 @@ public class HttpClientRequest {
     @SuppressWarnings("unchecked")
     public static SSLContext createSSLContext() throws IOException {
         ClientConfig config = ClientConfig.get();
-        if (sslContext != null && config == clientConfig)
-            return sslContext;
+        CachedTlsContext cached = tlsContext;
+        if (cached != null && cached.config() == config) {
+            return cached.context();
+        }
         synchronized (HttpClientRequest.class) {
             config = ClientConfig.get();
-            if (sslContext != null && config == clientConfig)
-                return sslContext;
-            clientConfig = config;
-            KeyManager[] keyManagers = null;
-            Map<String, Object> tlsMap = clientConfig.getTlsConfig();
-            if (tlsMap != null) {
-                try {
-                    // load key store for client certificate if two way ssl is used.
-                    Boolean loadKeyStore = tlsMap.get(LOAD_KEY_STORE) == null ? false
-                            : Config.loadBooleanValue(LOAD_KEY_STORE, tlsMap.get(LOAD_KEY_STORE));
-                    if (loadKeyStore != null && loadKeyStore) {
-                        String keyStoreName = System.getProperty(KEY_STORE_PROPERTY);
-                        String keyStorePass = System.getProperty(KEY_STORE_PASSWORD_PROPERTY);
-                        if (keyStoreName != null && keyStorePass != null) {
-                            if (logger.isInfoEnabled())
-                                logger.info(
-                                        "Loading key store from system property at " + Encode.forJava(keyStoreName));
-                        } else {
-                            keyStoreName = (String) tlsMap.get(KEY_STORE);
-                            keyStorePass = (String) tlsMap.get(KEY_STORE_PASS);
-                            if (keyStorePass == null) {
-                                logger.error("Cannot load the config: " + KEY_STORE_PASS + " from client.yml");
-                            }
-                            if (logger.isInfoEnabled())
-                                logger.info("Loading key store from config at " + Encode.forJava(keyStoreName));
-                        }
-                        if (keyStoreName != null && keyStorePass != null) {
-                            String keyPass = (String) tlsMap.get(KEY_PASS);
-                            if (keyPass == null) {
-                                logger.error("Cannot load the config: " + KEY_PASS + " from client.yml");
-                            }
-                            KeyStore keyStore;
-                            char[] storePassword = keyStorePass.toCharArray();
-                            try {
-                                keyStore = TlsUtil.loadKeyStore(keyStoreName, storePassword);
-                            } finally {
-                                Arrays.fill(storePassword, '\0');
-                            }
-                            KeyManagerFactory keyManagerFactory = KeyManagerFactory
-                                    .getInstance(KeyManagerFactory.getDefaultAlgorithm());
-                            // Provider compatibility assumes init consumes or copies this array before returning.
-                            char[] keyPassword = keyPass.toCharArray();
-                            try {
-                                keyManagerFactory.init(keyStore, keyPassword);
-                            } finally {
-                                Arrays.fill(keyPassword, '\0');
-                            }
-                            keyManagers = keyManagerFactory.getKeyManagers();
-                        }
-                    }
-                } catch (NoSuchAlgorithmException | UnrecoverableKeyException | KeyStoreException e) {
-                    throw new IOException("Unable to initialise KeyManager[]", e);
-                }
-
-                TrustManager[] trustManagers = null;
-                Boolean loadDefaultTrust = tlsMap.get(LOAD_DEFAULT_TRUST) == null ? false
-                        : Config.loadBooleanValue(LOAD_DEFAULT_TRUST, tlsMap.get(LOAD_DEFAULT_TRUST));
-                List<TrustManager> trustManagerList = new ArrayList<>();
-                try {
-                    // load trust store, this is the server public key certificate
-                    // first check if javax.net.ssl.trustStore system properties is set. It is only
-                    // necessary if the server
-                    // certificate doesn't have the entire chain.
-                    Boolean loadTrustStore = tlsMap.get(LOAD_TRUST_STORE) == null ? false
-                            : Config.loadBooleanValue(LOAD_TRUST_STORE, tlsMap.get(LOAD_TRUST_STORE));
-                    if (loadTrustStore != null && loadTrustStore) {
-                        String trustStoreName = (String) tlsMap.get(TRUST_STORE);
-                        String trustStorePass = (String) tlsMap.get(TRUST_STORE_PASS);
-                        if (trustStorePass == null) {
-                            logger.error("Cannot load the config: " + TRUST_STORE_PASS + " from client.yml");
-                        }
-                        if (logger.isInfoEnabled())
-                            logger.info("Loading trust store from config at {}", Encode.forJava(trustStoreName));
-                        if (trustStoreName != null && trustStorePass != null) {
-                            KeyStore trustStore;
-                            char[] trustPassword = trustStorePass.toCharArray();
-                            try {
-                                trustStore = TlsUtil.loadKeyStore(trustStoreName, trustPassword);
-                            } finally {
-                                Arrays.fill(trustPassword, '\0');
-                            }
-                            TrustManagerFactory trustManagerFactory = TrustManagerFactory
-                                    .getInstance(KeyManagerFactory.getDefaultAlgorithm());
-                            trustManagerFactory.init(trustStore);
-                            trustManagers = trustManagerFactory.getTrustManagers();
-                        }
-                        if (loadDefaultTrust != null && loadDefaultTrust) {
-                            TrustManager[] defaultTrusts = loadDefaultTrustStore();
-                            if (defaultTrusts != null && defaultTrusts.length > 0) {
-                                trustManagerList.addAll(Arrays.asList(defaultTrusts));
-                            }
-                        }
-                        if (trustManagers != null && trustManagers.length > 0) {
-                            trustManagerList.addAll(Arrays.asList(trustManagers));
-                        }
-                    }
-                } catch (Exception e) {
-                    throw new IOException("Unable to initialise TrustManager[]", e);
-                }
-
-                try {
-                    String tlsVersion = (String) tlsMap.get(TLS_VERSION);
-                    if (tlsVersion == null)
-                        tlsVersion = "TLSv1.3";
-                    sslContext = SSLContext.getInstance(tlsVersion);
-                    if (loadDefaultTrust != null && loadDefaultTrust && !trustManagerList.isEmpty()) {
-                        TrustManager[] compositeTrustManagers = {
-                                new CompositeX509TrustManager(convertTrustManagers(trustManagerList)) };
-                        sslContext.init(keyManagers, compositeTrustManagers, null);
-                    } else {
-                        if (trustManagers == null || trustManagers.length == 0) {
-                            logger.error("No trust store is loaded. Please check client.yml");
-                        } else {
-                            TrustManager[] extendedTrustManagers = {
-                                    new ClientX509ExtendedTrustManager(trustManagerList) };
-                            sslContext.init(keyManagers, extendedTrustManagers, null);
-                        }
-                    }
-                } catch (NoSuchAlgorithmException | KeyManagementException e) {
-                    throw new IOException("Unable to create and initialise the SSLContext", e);
-                }
-            } else {
-                logger.error("TLS configuration section is missing in client.yml");
+            cached = tlsContext;
+            if (cached != null && cached.config() == config) {
+                return cached.context();
             }
-            return sslContext;
+            Map<String, Object> tlsMap = config.getTlsConfig();
+            if (tlsMap == null) {
+                throw new IOException("TLS configuration section is missing in client.yml");
+            }
+            SSLContext context = buildTlsContext(tlsMap);
+            clientConfig = config;
+            tlsContext = new CachedTlsContext(config, context);
+            return context;
+        }
+    }
+
+    private static SSLContext buildTlsContext(Map<String, Object> tlsMap) throws IOException {
+        KeyManager[] keyManagers = null;
+        try {
+            // load key store for client certificate if two way ssl is used.
+            Boolean loadKeyStore = tlsMap.get(LOAD_KEY_STORE) == null ? false
+                    : Config.loadBooleanValue(LOAD_KEY_STORE, tlsMap.get(LOAD_KEY_STORE));
+            if (loadKeyStore != null && loadKeyStore) {
+                String keyStoreName = System.getProperty(KEY_STORE_PROPERTY);
+                String storePasswordProperty = SYSTEM_KEY_STORE_PASSWORD_FILE;
+                String storePasswordFile = System.getProperty(storePasswordProperty);
+                String keyStorePass = storePasswordFile == null
+                        ? System.getProperty(KEY_STORE_PASSWORD_PROPERTY) : null;
+                if (storePasswordFile != null && keyStoreName == null) {
+                    throw new IOException(KEY_STORE_PROPERTY + " is required with " + storePasswordProperty);
+                }
+                if (keyStoreName != null && (keyStorePass != null || storePasswordFile != null)) {
+                    if (logger.isInfoEnabled())
+                        logger.info(
+                                "Loading key store from system property at " + Encode.forJava(keyStoreName));
+                } else {
+                    keyStoreName = (String) tlsMap.get(KEY_STORE);
+                    storePasswordProperty = KEY_STORE_PASSWORD_FILE;
+                    storePasswordFile = System.getProperty(storePasswordProperty);
+                    keyStorePass = storePasswordFile == null ? (String) tlsMap.get(KEY_STORE_PASS) : null;
+                    if (keyStorePass == null && storePasswordFile == null) {
+                        logger.error("Cannot load the config: " + KEY_STORE_PASS + " from client.yml");
+                    }
+                    if (logger.isInfoEnabled())
+                        logger.info("Loading key store from config at " + Encode.forJava(keyStoreName));
+                }
+                if (keyStoreName != null && (keyStorePass != null || storePasswordFile != null)) {
+                    String keyPasswordFile = System.getProperty(KEY_PASSWORD_FILE);
+                    String keyPass = keyPasswordFile == null ? (String) tlsMap.get(KEY_PASS) : null;
+                    if (keyPass == null && keyPasswordFile == null) {
+                        throw new IOException("Missing " + KEY_PASS + " in client.yml or " + KEY_PASSWORD_FILE);
+                    }
+                    KeyStore keyStore;
+                    char[] storePassword = storePasswordFile == null ? keyStorePass.toCharArray()
+                            : TlsPasswordFile.read(storePasswordFile, storePasswordProperty);
+                    try {
+                        keyStore = TlsUtil.loadKeyStore(keyStoreName, storePassword);
+                    } finally {
+                        Arrays.fill(storePassword, '\0');
+                    }
+                    KeyManagerFactory keyManagerFactory = KeyManagerFactory
+                            .getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                    // Provider compatibility assumes init consumes or copies this array before returning.
+                    char[] keyPassword = keyPasswordFile == null ? keyPass.toCharArray()
+                            : TlsPasswordFile.read(keyPasswordFile, KEY_PASSWORD_FILE);
+                    try {
+                        keyManagerFactory.init(keyStore, keyPassword);
+                    } finally {
+                        Arrays.fill(keyPassword, '\0');
+                    }
+                    keyManagers = keyManagerFactory.getKeyManagers();
+                }
+            }
+        } catch (NoSuchAlgorithmException | UnrecoverableKeyException | KeyStoreException e) {
+            throw new IOException("Unable to initialise KeyManager[]", e);
+        }
+
+        TrustManager[] trustManagers = null;
+        Boolean loadDefaultTrust = tlsMap.get(LOAD_DEFAULT_TRUST) == null ? false
+                : Config.loadBooleanValue(LOAD_DEFAULT_TRUST, tlsMap.get(LOAD_DEFAULT_TRUST));
+        List<TrustManager> trustManagerList = new ArrayList<>();
+        try {
+            // load trust store, this is the server public key certificate
+            // first check if javax.net.ssl.trustStore system properties is set. It is only
+            // necessary if the server
+            // certificate doesn't have the entire chain.
+            Boolean loadTrustStore = tlsMap.get(LOAD_TRUST_STORE) == null ? false
+                    : Config.loadBooleanValue(LOAD_TRUST_STORE, tlsMap.get(LOAD_TRUST_STORE));
+            if (loadTrustStore != null && loadTrustStore) {
+                String trustStoreName = (String) tlsMap.get(TRUST_STORE);
+                String passwordFile = System.getProperty(TRUST_STORE_PASSWORD_FILE);
+                String trustStorePass = passwordFile == null ? (String) tlsMap.get(TRUST_STORE_PASS) : null;
+                if (trustStorePass == null && passwordFile == null) {
+                    logger.error("Cannot load the config: " + TRUST_STORE_PASS + " from client.yml");
+                }
+                if (logger.isInfoEnabled())
+                    logger.info("Loading trust store from config at {}", Encode.forJava(trustStoreName));
+                if (trustStoreName != null && (trustStorePass != null || passwordFile != null)) {
+                    KeyStore trustStore;
+                    char[] trustPassword = passwordFile == null ? trustStorePass.toCharArray()
+                            : TlsPasswordFile.read(passwordFile, TRUST_STORE_PASSWORD_FILE);
+                    try {
+                        trustStore = TlsUtil.loadKeyStore(trustStoreName, trustPassword);
+                    } finally {
+                        Arrays.fill(trustPassword, '\0');
+                    }
+                    TrustManagerFactory trustManagerFactory = TrustManagerFactory
+                            .getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                    trustManagerFactory.init(trustStore);
+                    trustManagers = trustManagerFactory.getTrustManagers();
+                }
+                if (loadDefaultTrust != null && loadDefaultTrust) {
+                    TrustManager[] defaultTrusts = loadDefaultTrustStore(tlsMap);
+                    if (defaultTrusts != null && defaultTrusts.length > 0) {
+                        trustManagerList.addAll(Arrays.asList(defaultTrusts));
+                    }
+                }
+                if (trustManagers != null && trustManagers.length > 0) {
+                    trustManagerList.addAll(Arrays.asList(trustManagers));
+                }
+            }
+        } catch (IOException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IOException("Unable to initialise TrustManager[]", e);
+        }
+
+        try {
+            String tlsVersion = (String) tlsMap.get(TLS_VERSION);
+            if (tlsVersion == null)
+                tlsVersion = "TLSv1.3";
+            SSLContext context = SSLContext.getInstance(tlsVersion);
+            if (loadDefaultTrust != null && loadDefaultTrust && !trustManagerList.isEmpty()) {
+                TrustManager[] compositeTrustManagers = {
+                        new CompositeX509TrustManager(convertTrustManagers(trustManagerList)) };
+                context.init(keyManagers, compositeTrustManagers, null);
+            } else {
+                if (trustManagers == null || trustManagers.length == 0) {
+                    throw new IOException("No trust store is loaded. Please check client.yml");
+                } else {
+                    TrustManager[] extendedTrustManagers = {
+                            new ClientX509ExtendedTrustManager(trustManagerList) };
+                    context.init(keyManagers, extendedTrustManagers, null);
+                }
+            }
+            return context;
+        } catch (NoSuchAlgorithmException | KeyManagementException e) {
+            throw new IOException("Unable to create and initialise the SSLContext", e);
         }
     }
 
@@ -489,12 +522,11 @@ public class HttpClientRequest {
     }
 
     public static TrustManager[] loadDefaultTrustStore() throws Exception {
+        return loadDefaultTrustStore(ClientConfig.get().getTlsConfig());
+    }
+
+    private static TrustManager[] loadDefaultTrustStore(Map<String, Object> tlsMap) throws Exception {
         Path location = null;
-        String password = null;
-        Map<String, Object> tlsMap = clientConfig.getTlsConfig();
-        if (tlsMap != null && tlsMap.get(DEFAULT_CERT_PASS) != null) {
-            password = (String) tlsMap.get(DEFAULT_CERT_PASS);
-        }
         String locationProperty = System.getProperty(TRUST_STORE_PROPERTY);
         if (!StringUtils.isEmpty(locationProperty)) {
             Path p = Paths.get(locationProperty);
@@ -509,14 +541,17 @@ public class HttpClientRequest {
                 location = Paths.get(javaHome, "lib", "security", "cacerts");
             }
         }
-        if (!location.toFile().exists()) {
+        if (location == null || !location.toFile().exists()) {
             logger.warn("Cannot find system default trust store");
             return null;
         }
 
-        String trustStorePass = System.getProperty(TRUST_STORE_PASSWORD_PROPERTY);
-        if (!StringUtils.isEmpty(trustStorePass)) {
-            password = trustStorePass;
+        String passwordFile = System.getProperty(DEFAULT_TRUST_STORE_PASSWORD_FILE);
+        String password = null;
+        if (passwordFile == null) {
+            String trustStorePass = System.getProperty(TRUST_STORE_PASSWORD_PROPERTY);
+            password = !StringUtils.isEmpty(trustStorePass) ? trustStorePass
+                    : tlsMap == null ? null : (String) tlsMap.get(DEFAULT_CERT_PASS);
         }
         String trustStoreType = System.getProperty(TRUST_STORE_TYPE_PROPERTY);
         String type;
@@ -527,7 +562,8 @@ public class HttpClientRequest {
         }
         KeyStore trustStore = KeyStore.getInstance(type, Security.getProvider("SUN"));
         try (InputStream is = Files.newInputStream(location)) {
-            char[] chars = password == null ? null : password.toCharArray();
+            char[] chars = passwordFile != null ? TlsPasswordFile.read(passwordFile, DEFAULT_TRUST_STORE_PASSWORD_FILE)
+                    : password == null ? null : password.toCharArray();
             try {
                 trustStore.load(is, chars);
                 logger.info("JDK default trust store loaded from : {} .", location);
