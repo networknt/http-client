@@ -22,6 +22,7 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -45,13 +46,16 @@ class HttpClientTlsPasswordTest {
     private static final String STORE_PASSWORD = "store-canary";
     private static final String KEY_PASSWORD = "key-canary";
     private static final String[] PROPERTIES = {KEY_STORE_PROPERTY, KEY_STORE_PASSWORD_PROPERTY,
-            TRUST_STORE_PROPERTY, TRUST_STORE_PASSWORD_PROPERTY, TRUST_STORE_TYPE_PROPERTY};
+            TRUST_STORE_PROPERTY, TRUST_STORE_PASSWORD_PROPERTY, TRUST_STORE_TYPE_PROPERTY,
+            KEY_STORE_PASSWORD_FILE, KEY_PASSWORD_FILE, TRUST_STORE_PASSWORD_FILE,
+            DEFAULT_TRUST_STORE_PASSWORD_FILE, SYSTEM_KEY_STORE_PASSWORD_FILE};
     private static Path keyStorePath;
     private static Path trustStorePath;
     private final Map<String, Object> tls = new HashMap<>();
     private final List<char[]> captured = new ArrayList<>();
     private Field configField;
     private Field contextField;
+    private MockedStatic<ClientConfig> configs;
     @AutoClose private StateGuard state;
 
     @BeforeAll
@@ -86,7 +90,7 @@ class HttpClientTlsPasswordTest {
         when(config.getTlsConfig()).thenReturn(tls);
         configField.set(null, config);
         contextField.set(null, null);
-        var configs = tracked(mockStatic(ClientConfig.class));
+        configs = tracked(mockStatic(ClientConfig.class));
         configs.when(ClientConfig::get).thenReturn(config);
     }
 
@@ -101,7 +105,7 @@ class HttpClientTlsPasswordTest {
 
         StateGuard() throws Exception {
             configField = HttpClientRequest.class.getDeclaredField("clientConfig");
-            contextField = HttpClientRequest.class.getDeclaredField("sslContext");
+            contextField = HttpClientRequest.class.getDeclaredField("tlsContext");
             configField.setAccessible(true);
             contextField.setAccessible(true);
             config = configField.get(null);
@@ -198,13 +202,14 @@ class HttpClientTlsPasswordTest {
     }
 
     @Test
-    void missingPrivateKeyPasswordStillFailsAfterLoadingAndClearingStoreCopy() throws Exception {
+    void missingPrivateKeyPasswordFailsBeforeLoadingStore() throws Exception {
         tls.remove(KEY_PASS);
         Map<String, Object> borrowed = new HashMap<>(tls);
-        try (var stores = observeStoreLoads(); var factories = observeKeyManager()) {
-            assertThrows(NullPointerException.class, HttpClientRequest::createSSLContext);
+        try (var stores = observeStoreLoads()) {
+            IOException failure = assertThrows(IOException.class, HttpClientRequest::createSSLContext);
+            assertTrue(failure.getMessage().contains(KEY_PASS));
         }
-        assertCleared(1);
+        assertTrue(captured.isEmpty());
         assertEquals(borrowed, tls);
     }
 
@@ -246,6 +251,96 @@ class HttpClientTlsPasswordTest {
         assertNull(captured.getFirst());
         assertFalse(tls.containsKey(DEFAULT_CERT_PASS));
         assertNull(System.getProperty(TRUST_STORE_PASSWORD_PROPERTY));
+    }
+
+    @Test
+    void passwordFilesLoadAllFourCredentialsWithoutLegacyPasswords(@TempDir Path directory) throws Exception {
+        Path storePassword = Files.writeString(directory.resolve("store-password"), STORE_PASSWORD);
+        Path keyPassword = Files.writeString(directory.resolve("key-password"), KEY_PASSWORD);
+        System.setProperty(KEY_STORE_PASSWORD_FILE, storePassword.toString());
+        System.setProperty(KEY_PASSWORD_FILE, keyPassword.toString());
+        System.setProperty(TRUST_STORE_PASSWORD_FILE, storePassword.toString());
+        System.setProperty(DEFAULT_TRUST_STORE_PASSWORD_FILE, storePassword.toString());
+        System.setProperty(TRUST_STORE_PROPERTY, trustStorePath.toString());
+        System.setProperty(TRUST_STORE_TYPE_PROPERTY, "JKS");
+        tls.put(LOAD_DEFAULT_TRUST, true);
+        tls.remove(KEY_STORE_PASS);
+        tls.remove(KEY_PASS);
+        tls.remove(TRUST_STORE_PASS);
+
+        assertNotNull(createSSLContext().createSSLEngine());
+    }
+
+    @Test
+    void passwordFileRequiresBoundedUtf8AndPreservesWhitespace(@TempDir Path directory) throws Exception {
+        Path file = directory.resolve("password");
+        Files.writeString(file, " canary-λ\n");
+        assertArrayEquals(" canary-λ\n".toCharArray(), TlsPasswordFile.read(file.toString(), KEY_PASSWORD_FILE));
+        Files.write(file, new byte[]{(byte) 0xC3});
+        assertTrue(assertThrows(IOException.class, () -> TlsPasswordFile.read(file.toString(), KEY_PASSWORD_FILE))
+                .getMessage().contains("Invalid UTF-8"));
+        Files.write(file, new byte[4096]);
+        assertEquals(4096, TlsPasswordFile.read(file.toString(), KEY_PASSWORD_FILE).length);
+        Files.write(file, new byte[4097]);
+        assertTrue(assertThrows(IOException.class, () -> TlsPasswordFile.read(file.toString(), KEY_PASSWORD_FILE))
+                .getMessage().contains("exceeds 4096 bytes"));
+    }
+
+    @Test
+    void invalidPasswordFileDoesNotFallBackAndCanBeRetried(@TempDir Path directory) throws Exception {
+        Path password = directory.resolve("store-password");
+        System.setProperty(KEY_STORE_PASSWORD_FILE, password.toString());
+        IOException failure = assertThrows(IOException.class, HttpClientRequest::createSSLContext);
+        assertTrue(failure.getMessage().contains(KEY_STORE_PASSWORD_FILE));
+        assertFalse(failure.getMessage().contains(password.toString()));
+        assertTrue(failure.getMessage().contains("NoSuchFileException"));
+        assertNull(contextField.get(null));
+
+        Files.writeString(password, STORE_PASSWORD);
+        assertNotNull(createSSLContext().createSSLEngine());
+    }
+
+    @Test
+    void configuredPasswordFileDoesNotSelectUnpairedSystemKeystore(@TempDir Path directory) throws Exception {
+        Path password = Files.writeString(directory.resolve("store-password"), STORE_PASSWORD);
+        System.setProperty(KEY_STORE_PASSWORD_FILE, password.toString());
+        System.setProperty(KEY_STORE_PROPERTY, directory.resolve("missing-store").toString());
+        assertNotNull(createSSLContext().createSSLEngine());
+    }
+
+    @Test
+    void explicitSystemPasswordFileSelectsSystemKeystore(@TempDir Path directory) throws Exception {
+        Path password = Files.writeString(directory.resolve("store-password"), STORE_PASSWORD);
+        System.setProperty(SYSTEM_KEY_STORE_PASSWORD_FILE, password.toString());
+        System.setProperty(KEY_STORE_PROPERTY, keyStorePath.toString());
+        tls.put(KEY_STORE, directory.resolve("missing-store").toString());
+        assertNotNull(createSSLContext().createSSLEngine());
+    }
+
+    @Test
+    void missingTlsOnReloadRejectsNewContextAndDoesNotReplaceOldCache() throws Exception {
+        SSLContext original = createSSLContext();
+        ClientConfig previous = ClientConfig.get();
+        ClientConfig missing = mock(ClientConfig.class);
+        when(missing.getTlsConfig()).thenReturn(null);
+        configs.when(ClientConfig::get).thenReturn(missing);
+        IOException failure = assertThrows(IOException.class, HttpClientRequest::createSSLContext);
+        assertTrue(failure.getMessage().contains("TLS configuration section is missing"));
+        configs.when(ClientConfig::get).thenReturn(previous);
+        assertSame(original, createSSLContext());
+    }
+
+    @Test
+    void httpsBuilderStopsWhenSelectedPasswordFileIsMissing(@TempDir Path directory) {
+        ClientConfig config = mock(ClientConfig.class, RETURNS_DEEP_STUBS);
+        when(config.getTlsConfig()).thenReturn(tls);
+        when(config.getRequest().getConnectTimeout()).thenReturn(1000);
+        configs.when(ClientConfig::get).thenReturn(config);
+        System.setProperty(TRUST_STORE_PASSWORD_FILE, directory.resolve("missing-password").toString());
+
+        UncheckedIOException failure = assertThrows(UncheckedIOException.class,
+                () -> new HttpClientRequest().buildHttpClient(config, true));
+        assertTrue(failure.getCause().getMessage().contains(TRUST_STORE_PASSWORD_FILE));
     }
 
     @Test
@@ -291,9 +386,9 @@ class HttpClientTlsPasswordTest {
             MockedStatic<?> failing = mock(MockedStatic.class);
             doThrow(new IllegalStateException("synthetic cleanup failure")).when(failing).closeOnDemand();
             guard.mocks.add(failing);
+            createSSLContext();
             for (String name : PROPERTIES) System.setProperty(name, "changed-for-cleanup-test");
             configField.set(null, null);
-            contextField.set(null, SSLContext.getInstance("TLSv1.3"));
             assertThrows(AssertionError.class, guard::close);
             assertSame(guard.config, configField.get(null));
             assertSame(guard.context, contextField.get(null));
